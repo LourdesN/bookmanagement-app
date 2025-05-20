@@ -33,3 +33,10 @@ require __DIR__.'/auth.php';
 Route::get('/home', [App\Http\Controllers\HomeController::class, 'index'])->name('home');
 
 Auth::routes();
+
+Route::resource('books', App\Http\Controllers\BookController::class);
+Route::resource('customers', App\Http\Controllers\CustomerController::class);
+Route::resource('deliveries', App\Http\Controllers\DeliveryController::class);
+Route::resource('inventories', App\Http\Controllers\InventoryController::class);
+Route::resource('sales', App\Http\Controllers\SaleController::class);
+Route::resource('suppliers', App\Http\Controllers\SupplierController::class);
