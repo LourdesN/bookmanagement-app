@@ -13,12 +13,19 @@
 <!-- Unit Cost Field -->
 <div class="col-sm-12">
     {!! Form::label('unit_cost', 'Unit Cost:') !!}
-    <p>{{ $book->unit_cost }}</p>
+    <p>{{ 'Kshs. ' . number_format($book->unit_cost) }}</p>
+
 </div>
 
 <!-- Isbn Field -->
 <div class="col-sm-12">
     {!! Form::label('isbn', 'Isbn:') !!}
     <p>{{ $book->isbn }}</p>
+</div>
+
+<!-- Description Field -->
+<div class="col-sm-12">
+    {!! Form::label('description', 'Description:') !!}
+    <p>{{ $book->description }}</p>
 </div>
 

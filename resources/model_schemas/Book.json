@@ -60,8 +60,40 @@
         "inView": true
     },
     {
-        "type": "relation",
-        "relation": "1tm,Delivery,book_id"
+        "name": "description",
+        "dbType": "text",
+        "htmlType": "textarea",
+        "validations": "nullable|string|max:65535|nullable|string|max:65535",
+        "searchable": true,
+        "fillable": true,
+        "primary": false,
+        "inForm": true,
+        "inIndex": true,
+        "inView": true
+    },
+    {
+        "name": "created_at",
+        "dbType": "datetime",
+        "htmlType": "date",
+        "validations": "nullable|nullable",
+        "searchable": false,
+        "fillable": false,
+        "primary": false,
+        "inForm": false,
+        "inIndex": false,
+        "inView": false
+    },
+    {
+        "name": "updated_at",
+        "dbType": "datetime",
+        "htmlType": "date",
+        "validations": "nullable|nullable",
+        "searchable": false,
+        "fillable": false,
+        "primary": false,
+        "inForm": false,
+        "inIndex": false,
+        "inView": false
     },
     {
         "type": "relation",
@@ -70,5 +102,9 @@
     {
         "type": "relation",
         "relation": "1tm,Inventory,book_id"
+    },
+    {
+        "type": "relation",
+        "relation": "1tm,Delivery,book_id"
     }
 ]

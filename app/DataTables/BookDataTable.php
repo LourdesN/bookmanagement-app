@@ -6,7 +6,6 @@ use App\Models\Book;
 use Yajra\DataTables\Services\DataTable;
 use Yajra\DataTables\EloquentDataTable;
 
-
 class BookDataTable extends DataTable
 {
     /**
@@ -18,9 +17,14 @@ class BookDataTable extends DataTable
     public function dataTable($query)
     {
         $dataTable = new EloquentDataTable($query);
-
-        return $dataTable->addColumn('action', 'books.datatables_actions');
+    
+        return $dataTable
+            ->editColumn('unit_cost', function ($book) {
+                return 'Kshs. ' . number_format($book->unit_cost, 2);
+            })
+            ->addColumn('action', 'books.datatables_actions');
     }
+    
 
     /**
      * Get query source of dataTable.
@@ -70,7 +74,8 @@ class BookDataTable extends DataTable
             'title',
             'print_date',
             'unit_cost',
-            'isbn'
+            'isbn',
+            'description'
         ];
     }
 

@@ -11,7 +11,8 @@ class BookRepository extends BaseRepository
         'title',
         'print_date',
         'unit_cost',
-        'isbn'
+        'isbn',
+        'description'
     ];
 
     public function getFieldsSearchable(): array

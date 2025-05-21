@@ -12,25 +12,25 @@ class Book extends Model
         'title',
         'print_date',
         'unit_cost',
-        'isbn'
+        'isbn',
+        'description'
     ];
 
     protected $casts = [
         'title' => 'string',
-        'print_date' => 'date'
+        'print_date' => 'date',
+        'description' => 'string'
     ];
 
     public static array $rules = [
         'title' => 'required|string|max:500',
         'print_date' => 'required',
         'unit_cost' => 'required',
-        'isbn' => 'nullable'
+        'isbn' => 'nullable',
+        'description' => 'nullable|string|max:65535',
+        'created_at' => 'nullable',
+        'updated_at' => 'nullable'
     ];
-
-    public function deliveries(): \Illuminate\Database\Eloquent\Relations\HasMany
-    {
-        return $this->hasMany(\App\Models\Delivery::class, 'book_id');
-    }
 
     public function sales(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
@@ -41,4 +41,14 @@ class Book extends Model
     {
         return $this->hasMany(\App\Models\Inventory::class, 'book_id');
     }
+
+    public function deliveries(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(\App\Models\Delivery::class, 'book_id');
+    }
+    public function getPrintDateAttribute($value)
+{
+    return \Carbon\Carbon::parse($value)->format('Y-m-d');
+}
+
 }
