@@ -1,7 +1,7 @@
 <!-- Book Id Field -->
 <div class="col-sm-12">
-    {!! Form::label('book_id', 'Book Id:') !!}
-    <p>{{ $inventory->book_id }}</p>
+    {!! Form::label('book_id', 'Book Title:') !!}
+    <p>{{ $inventory->book->title ?? 'N/A' }}</p>
 </div>
 
 <!-- Quantity Field -->

@@ -1,13 +1,13 @@
 <!-- Book Id Field -->
 <div class="col-sm-12">
-    {!! Form::label('book_id', 'Book Id:') !!}
-    <p>{{ $sale->book_id }}</p>
+    {!! Form::label('book_id', 'Book Title:') !!}
+    <p>{{ $sale->book->title }}</p>
 </div>
 
 <!-- Customer Id Field -->
 <div class="col-sm-12">
-    {!! Form::label('customer_id', 'Customer Id:') !!}
-    <p>{{ $sale->customer_id }}</p>
+    {!! Form::label('customer_id', 'Customer Name:') !!}
+    <p>{{ $sale->customer->first_name }}</p>
 </div>
 
 <!-- Quantity Field -->

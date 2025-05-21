@@ -9,6 +9,8 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\SaleRepository;
 use Illuminate\Http\Request;
 use Flash;
+use App\Models\Book;
+use App\Models\Customer;
 
 class SaleController extends AppBaseController
 {
@@ -34,7 +36,10 @@ class SaleController extends AppBaseController
      */
     public function create()
     {
-        return view('sales.create');
+        $books = Book::pluck('title', 'id');
+    $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                         ->pluck('name', 'id');
+        return view('sales.create', compact('books', 'customers'));
     }
 
     /**
@@ -63,8 +68,11 @@ class SaleController extends AppBaseController
 
             return redirect(route('sales.index'));
         }
+        $books = Book::pluck('title', 'id');
+        $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                             ->pluck('name', 'id');
 
-        return view('sales.show')->with('sale', $sale);
+        return view('sales.show', compact('sale', 'books', 'customers'));
     }
 
     /**
@@ -79,8 +87,11 @@ class SaleController extends AppBaseController
 
             return redirect(route('sales.index'));
         }
+        $books = Book::pluck('title', 'id');
+        $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                             ->pluck('name', 'id');
 
-        return view('sales.edit')->with('sale', $sale);
+        return view('sales.edit', compact('sale', 'books', 'customers'));
     }
 
     /**

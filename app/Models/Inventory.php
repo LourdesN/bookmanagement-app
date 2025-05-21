@@ -31,4 +31,8 @@ class Inventory extends Model
     {
         return $this->belongsTo(\App\Models\Book::class, 'book_id');
     }
+    public function getDeliveryDateAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-m-Y');
+    }
 }

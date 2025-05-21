@@ -9,6 +9,8 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\InventoryRepository;
 use Illuminate\Http\Request;
 use Flash;
+use App\Models\Book;
+use App\Models\Supplier;
 
 class InventoryController extends AppBaseController
 {
@@ -34,7 +36,8 @@ class InventoryController extends AppBaseController
      */
     public function create()
     {
-        return view('inventories.create');
+        $books = Book::pluck('title', 'id');
+        return view('inventories.create', compact('books'));
     }
 
     /**
@@ -63,8 +66,8 @@ class InventoryController extends AppBaseController
 
             return redirect(route('inventories.index'));
         }
-
-        return view('inventories.show')->with('inventory', $inventory);
+        $books = Book::pluck('title', 'id');
+        return view('inventories.show', compact('inventory', 'books'));
     }
 
     /**
@@ -80,7 +83,9 @@ class InventoryController extends AppBaseController
             return redirect(route('inventories.index'));
         }
 
-        return view('inventories.edit')->with('inventory', $inventory);
+        $books = Book::pluck('title', 'id');
+
+        return view('inventories.edit', compact('inventory', 'books'));
     }
 
     /**

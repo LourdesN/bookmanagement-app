@@ -15,11 +15,17 @@ class InventoryDataTable extends DataTable
      * @return \Yajra\DataTables\DataTableAbstract
      */
     public function dataTable($query)
-    {
-        $dataTable = new EloquentDataTable($query);
+{
+    $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'inventories.datatables_actions');
-    }
+    return $dataTable
+        ->addColumn('book_title', function ($row) {
+            return $row->book->title ?? 'N/A';
+        })
+        ->addColumn('action', 'inventories.datatables_actions')
+        ->rawColumns(['action']); // if using HTML in actions
+}
+
 
     /**
      * Get query source of dataTable.
@@ -66,13 +72,13 @@ class InventoryDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'book_id',
+            'book_title' => ['title' => 'Book Title'],
             'quantity',
             'location',
             'delivery_date'
         ];
     }
-
+    
     /**
      * Get filename for export.
      *

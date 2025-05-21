@@ -17,9 +17,20 @@ class SaleDataTable extends DataTable
     public function dataTable($query)
     {
         $dataTable = new EloquentDataTable($query);
-
-        return $dataTable->addColumn('action', 'sales.datatables_actions');
+    
+        return $dataTable
+            ->addColumn('book_title', function ($sale) {
+                return optional($sale->book)->title;
+            })
+            ->addColumn('customer_name', function ($sale) {
+                return optional($sale->customer)->first_name . ' ' . optional($sale->customer)->last_name;
+            })
+            ->editColumn('unit_price', function ($sale) {
+                return 'Kshs. ' . number_format($sale->unit_price, 2);
+            })
+            ->addColumn('action', 'sales.datatables_actions');
     }
+    
 
     /**
      * Get query source of dataTable.
@@ -66,14 +77,15 @@ class SaleDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'book_id',
-            'customer_id',
+            'book_title' => ['title' => 'Book Title', 'data' => 'book_title'],
+            'customer_name' => ['title' => 'Customer Name', 'data' => 'customer_name'],
             'quantity',
             'unit_price',
             'total',
-            'payment_status'
+            'payment_status',
         ];
     }
+    
 
     /**
      * Get filename for export.
