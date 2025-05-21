@@ -1,13 +1,13 @@
-<!-- Book Id Field -->
+<!-- Book Title Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('book_id', 'Book Id:') !!}
-    {!! Form::number('book_id', null, ['class' => 'form-control', 'required']) !!}
+    {!! Form::label('book_id', 'Book Title:') !!}
+    {!! Form::select('book_id', $books, null, ['class' => 'form-control', 'placeholder' => 'Select a Book', 'required']) !!}
 </div>
 
-<!-- Supplier Id Field -->
+<!-- Supplier Name Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('supplier_id', 'Supplier Id:') !!}
-    {!! Form::number('supplier_id', null, ['class' => 'form-control', 'required']) !!}
+    {!! Form::label('supplier_id', 'Supplier Name:') !!}
+    {!! Form::select('supplier_id', $suppliers, null, ['class' => 'form-control', 'placeholder' => 'Select a Supplier', 'required']) !!}
 </div>
 
 <!-- Quantity Field -->
@@ -19,7 +19,7 @@
 <!-- Delivery Date Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('delivery_date', 'Delivery Date:') !!}
-    {!! Form::text('delivery_date', null, ['class' => 'form-control','id'=>'delivery_date']) !!}
+    {!! Form::date('delivery_date', null, ['class' => 'form-control','id'=>'delivery_date',  'max' => \Carbon\Carbon::now()->format('Y-m-d')]) !!}
 </div>
 
 @push('page_scripts')

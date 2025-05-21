@@ -9,6 +9,9 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\DeliveryRepository;
 use Illuminate\Http\Request;
 use Flash;
+use App\Models\Book;
+use App\Models\Supplier;
+
 
 class DeliveryController extends AppBaseController
 {
@@ -34,7 +37,10 @@ class DeliveryController extends AppBaseController
      */
     public function create()
     {
-        return view('deliveries.create');
+        $books = Book::pluck('title', 'id');
+        $suppliers = Supplier::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                             ->pluck('name', 'id');
+        return view('deliveries.create', compact('books', 'suppliers'));
     }
 
     /**
@@ -64,24 +70,35 @@ class DeliveryController extends AppBaseController
             return redirect(route('deliveries.index'));
         }
 
-        return view('deliveries.show')->with('delivery', $delivery);
+        $books = Book::pluck('title', 'id');
+        $suppliers = Supplier::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                             ->pluck('name', 'id');
+
+        return view('deliveries.show', compact('delivery', 'books', 'suppliers'));
     }
 
     /**
      * Show the form for editing the specified Delivery.
      */
-    public function edit($id)
-    {
-        $delivery = $this->deliveryRepository->find($id);
+    /**
+ * Show the form for editing the specified Delivery.
+ */
+public function edit($id)
+{
+    $delivery = $this->deliveryRepository->find($id);
 
-        if (empty($delivery)) {
-            Flash::error('Delivery not found');
-
-            return redirect(route('deliveries.index'));
-        }
-
-        return view('deliveries.edit')->with('delivery', $delivery);
+    if (empty($delivery)) {
+        Flash::error('Delivery not found');
+        return redirect(route('deliveries.index'));
     }
+
+    $books = Book::pluck('title', 'id');
+    $suppliers = Supplier::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                         ->pluck('name', 'id');
+
+    return view('deliveries.edit', compact('delivery', 'books', 'suppliers'));
+}
+
 
     /**
      * Update the specified Delivery in storage.

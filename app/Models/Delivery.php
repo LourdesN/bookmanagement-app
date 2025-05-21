@@ -35,4 +35,9 @@ class Delivery extends Model
     {
         return $this->belongsTo(\App\Models\Supplier::class, 'supplier_id');
     }
+    public function getDeliveryDateAttribute($value)
+    {
+        return \Carbon\Carbon::parse($value)->format('d-m-Y');
+    }
+    
 }

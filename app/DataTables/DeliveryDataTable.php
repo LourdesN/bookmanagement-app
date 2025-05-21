@@ -18,7 +18,17 @@ class DeliveryDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'deliveries.datatables_actions');
+        return $dataTable
+            ->addColumn('book_title', function ($row) {
+                return optional($row->book)->title ?? 'N/A';
+            })
+            ->addColumn('supplier_name', function ($row) {
+                if ($row->supplier) {
+                    return $row->supplier->first_name . ' ' . $row->supplier->last_name;
+                }
+                return 'N/A';
+            })
+            ->addColumn('action', 'deliveries.datatables_actions');
     }
 
     /**
@@ -29,7 +39,7 @@ class DeliveryDataTable extends DataTable
      */
     public function query(Delivery $model)
     {
-        return $model->newQuery();
+        return $model->newQuery()->with(['book', 'supplier']);
     }
 
     /**
@@ -48,12 +58,11 @@ class DeliveryDataTable extends DataTable
                 'stateSave' => true,
                 'order'     => [[0, 'desc']],
                 'buttons'   => [
-                    // Enable Buttons as per your need
-//                    ['extend' => 'create', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'export', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'print', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'reset', 'className' => 'btn btn-default btn-sm no-corner',],
-//                    ['extend' => 'reload', 'className' => 'btn btn-default btn-sm no-corner',],
+                    // ['extend' => 'create', 'className' => 'btn btn-default btn-sm no-corner'],
+                    // ['extend' => 'export', 'className' => 'btn btn-default btn-sm no-corner'],
+                    // ['extend' => 'print', 'className' => 'btn btn-default btn-sm no-corner'],
+                    // ['extend' => 'reset', 'className' => 'btn btn-default btn-sm no-corner'],
+                    // ['extend' => 'reload', 'className' => 'btn btn-default btn-sm no-corner'],
                 ],
             ]);
     }
@@ -66,10 +75,10 @@ class DeliveryDataTable extends DataTable
     protected function getColumns()
     {
         return [
-            'book_id',
-            'supplier_id',
+            'book_title' => ['title' => 'Book Title'],
+            'supplier_name' => ['title' => 'Supplier Name'],
             'quantity',
-            'delivery_date'
+            'delivery_date',
         ];
     }
 

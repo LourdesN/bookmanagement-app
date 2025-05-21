@@ -1,14 +1,15 @@
-<!-- Book Id Field -->
+<!-- Book Title Field -->
 <div class="col-sm-12">
-    {!! Form::label('book_id', 'Book Id:') !!}
-    <p>{{ $delivery->book_id }}</p>
+    {!! Form::label('book_id', 'Book Title:') !!}
+    <p>{{ $delivery->book->title ?? 'N/A' }}</p>
 </div>
 
-<!-- Supplier Id Field -->
+<!-- Supplier Name Field -->
 <div class="col-sm-12">
-    {!! Form::label('supplier_id', 'Supplier Id:') !!}
-    <p>{{ $delivery->supplier_id }}</p>
+    {!! Form::label('supplier_id', 'Supplier Name:') !!}
+    <p>{{ $delivery->supplier->first_name . ' ' . $delivery->supplier->last_name ?? 'N/A' }}</p>
 </div>
+
 
 <!-- Quantity Field -->
 <div class="col-sm-12">
