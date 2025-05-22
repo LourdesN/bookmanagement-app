@@ -9,7 +9,7 @@
     {!! Form::button('<i class="fa fa-trash"></i>', [
         'type' => 'submit',
         'class' => 'btn btn-danger btn-xs',
-        'onclick' => 'return confirm("'.__('crud.are_you_sure').'")'
+        'onclick' => 'return confirm("Are you sure you want to delete this Inventory?")'
 
     ]) !!}
 </div>

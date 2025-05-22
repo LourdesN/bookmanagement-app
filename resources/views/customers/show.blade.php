@@ -28,4 +28,18 @@ Customer Details
             </div>
         </div>
     </div>
+    <style>
+        .card {
+    background-color: #fff;
+    border-radius: 0.75rem;
+}
+
+h1 {
+    font-size: 1.5rem;
+    margin-bottom: 0;
+}
+.btn{
+    margin-left:405px;
+}
+</style>
 @endsection

@@ -19,7 +19,7 @@
 
     <div class="content px-3">
 
-    @include('sweetalert::alert')
+           @include('sweetalert::alert')
 
         <div class="clearfix"></div>
 
