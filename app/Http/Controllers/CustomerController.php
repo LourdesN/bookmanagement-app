@@ -9,6 +9,7 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\CustomerRepository;
 use Illuminate\Http\Request;
 use Flash;
+use RealRashid\SweetAlert\Facades\Alert;
 
 class CustomerController extends AppBaseController
 {
@@ -46,7 +47,7 @@ class CustomerController extends AppBaseController
 
         $customer = $this->customerRepository->create($input);
 
-        Flash::success('Customer saved successfully.');
+        Alert::success('Success', 'Customer saved successfully.');
 
         return redirect(route('customers.index'));
     }
@@ -120,7 +121,7 @@ class CustomerController extends AppBaseController
 
         $this->customerRepository->delete($id);
 
-        Flash::success('Customer deleted successfully.');
+        Alert::success('Success', 'Customer deleted successfully.');
 
         return redirect(route('customers.index'));
     }

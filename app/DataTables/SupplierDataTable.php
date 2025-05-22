@@ -18,7 +18,11 @@ class SupplierDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'suppliers.datatables_actions');
+        return $dataTable
+        ->editColumn('phone_number', function ($supplier) {
+            return '+254 ' . $supplier->phone_number;
+        })
+        ->addColumn('action', 'suppliers.datatables_actions');
     }
 
     /**

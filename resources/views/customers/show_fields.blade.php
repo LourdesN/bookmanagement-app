@@ -19,7 +19,7 @@
 <!-- Phone Number Field -->
 <div class="col-sm-12">
     {!! Form::label('phone_number', 'Phone Number:') !!}
-    <p>{{ $customer->phone_number }}</p>
+    <p>+254 {{ $customer->phone_number }}</p>
 </div>
 
 <!-- Address Field -->

@@ -13,6 +13,7 @@ use App\Models\Book;
 use App\Models\Supplier;
 use App\Models\Inventory;
 use Illuminate\Support\Facades\DB;
+use RealRashid\SweetAlert\Facades\Alert;
 
 
 class DeliveryController extends AppBaseController
@@ -78,7 +79,7 @@ public function store(CreateDeliveryRequest $request)
         }
     });
 
-    Flash::success('Delivery saved and inventory updated successfully.');
+    Alert::success('Success', 'Delivery saved and inventory updated successfully.');
 
     return redirect(route('deliveries.index'));
 }
@@ -163,7 +164,7 @@ public function edit($id)
 
         $this->deliveryRepository->delete($id);
 
-        Flash::success('Delivery deleted successfully.');
+        Alert::success('Success', 'Delivery deleted successfully.');
 
         return redirect(route('deliveries.index'));
     }

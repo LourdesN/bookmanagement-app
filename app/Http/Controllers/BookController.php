@@ -9,6 +9,7 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\BookRepository;
 use Illuminate\Http\Request;
 use Flash;
+use RealRashid\SweetAlert\Facades\Alert;
 
 class BookController extends AppBaseController
 {
@@ -46,7 +47,7 @@ class BookController extends AppBaseController
 
         $book = $this->bookRepository->create($input);
 
-        Flash::success('Book saved successfully.');
+        Alert::success('Success', 'Book saved successfully.');
 
         return redirect(route('books.index'));
     }
@@ -120,7 +121,7 @@ class BookController extends AppBaseController
 
         $this->bookRepository->delete($id);
 
-        Flash::success('Book deleted successfully.');
+        Alert::success('Success', 'Book deleted successfully.');
 
         return redirect(route('books.index'));
     }

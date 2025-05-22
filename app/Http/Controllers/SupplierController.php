@@ -9,6 +9,7 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\SupplierRepository;
 use Illuminate\Http\Request;
 use Flash;
+use RealRashid\SweetAlert\Facades\Alert;
 
 class SupplierController extends AppBaseController
 {
@@ -46,7 +47,7 @@ class SupplierController extends AppBaseController
 
         $supplier = $this->supplierRepository->create($input);
 
-        Flash::success('Supplier saved successfully.');
+        Alert::success('Success', 'Supplier saved successfully.');
 
         return redirect(route('suppliers.index'));
     }
@@ -120,7 +121,8 @@ class SupplierController extends AppBaseController
 
         $this->supplierRepository->delete($id);
 
-        Flash::success('Supplier deleted successfully.');
+        Alert::success('Success', 'Supplier deleted successfully.');
+
 
         return redirect(route('suppliers.index'));
     }

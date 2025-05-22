@@ -11,6 +11,7 @@ use Illuminate\Http\Request;
 use Flash;
 use App\Models\Book;
 use App\Models\Supplier;
+use RealRashid\SweetAlert\Facades\Alert;
 
 class InventoryController extends AppBaseController
 {
@@ -49,7 +50,7 @@ class InventoryController extends AppBaseController
 
         $inventory = $this->inventoryRepository->create($input);
 
-        Flash::success('Inventory saved successfully.');
+        Alert::success('Success', 'Inventory saved successfully.');
 
         return redirect(route('inventories.index'));
     }
@@ -125,7 +126,7 @@ class InventoryController extends AppBaseController
 
         $this->inventoryRepository->delete($id);
 
-        Flash::success('Inventory deleted successfully.');
+        Alert::success('Success', 'Inventory deleted successfully.');
 
         return redirect(route('inventories.index'));
     }

@@ -18,7 +18,11 @@ class CustomerDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'customers.datatables_actions');
+        return $dataTable
+        ->editColumn('phone_number', function ($customer) {
+            return '+254 ' . $customer->phone_number;
+        })
+        ->addColumn('action', 'customers.datatables_actions');
     }
 
     /**
