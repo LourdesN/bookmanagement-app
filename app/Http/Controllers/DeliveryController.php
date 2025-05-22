@@ -11,6 +11,8 @@ use Illuminate\Http\Request;
 use Flash;
 use App\Models\Book;
 use App\Models\Supplier;
+use App\Models\Inventory;
+use Illuminate\Support\Facades\DB;
 
 
 class DeliveryController extends AppBaseController
@@ -46,16 +48,40 @@ class DeliveryController extends AppBaseController
     /**
      * Store a newly created Delivery in storage.
      */
-    public function store(CreateDeliveryRequest $request)
-    {
-        $input = $request->all();
 
+public function store(CreateDeliveryRequest $request)
+{
+    $input = $request->all();
+
+    DB::transaction(function () use ($input) {
+        // Save delivery through repository
         $delivery = $this->deliveryRepository->create($input);
 
-        Flash::success('Delivery saved successfully.');
+        // Try to find inventory for this book and location
+        $inventory = Inventory::where('book_id', $input['book_id'])
+            ->where('location', $input['location']) // Ensure this field is in the form
+            ->first();
 
-        return redirect(route('deliveries.index'));
-    }
+        if ($inventory) {
+            // Update existing inventory
+            $inventory->quantity += $input['quantity'];
+            $inventory->delivery_date = $input['delivery_date'];
+            $inventory->save();
+        } else {
+            // Create new inventory entry
+            Inventory::create([
+                'book_id' => $input['book_id'],
+                'quantity' => $input['quantity'],
+                'location' => $input['location'],
+                'delivery_date' => $input['delivery_date'],
+            ]);
+        }
+    });
+
+    Flash::success('Delivery saved and inventory updated successfully.');
+
+    return redirect(route('deliveries.index'));
+}
 
     /**
      * Display the specified Delivery.

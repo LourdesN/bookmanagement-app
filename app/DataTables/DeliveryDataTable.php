@@ -78,6 +78,7 @@ class DeliveryDataTable extends DataTable
             'book_title' => ['title' => 'Book Title'],
             'supplier_name' => ['title' => 'Supplier Name'],
             'quantity',
+            'location',
             'delivery_date',
         ];
     }

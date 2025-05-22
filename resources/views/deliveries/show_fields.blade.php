@@ -23,3 +23,8 @@
     <p>{{ $delivery->delivery_date }}</p>
 </div>
 
+<!-- Location Field -->
+<div class="col-sm-12">
+    {!! Form::label('location', 'Location:') !!}
+    <p>{{ $delivery->location }}</p>
+</div>

@@ -12,6 +12,7 @@ class Delivery extends Model
         'book_id',
         'supplier_id',
         'quantity',
+        'location',
         'delivery_date'
     ];
 
@@ -23,6 +24,7 @@ class Delivery extends Model
         'book_id' => 'required',
         'supplier_id' => 'required',
         'quantity' => 'required',
+        'location',
         'delivery_date' => 'required'
     ];
 
