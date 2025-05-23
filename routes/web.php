@@ -40,3 +40,4 @@ Route::resource('deliveries', App\Http\Controllers\DeliveryController::class);
 Route::resource('inventories', App\Http\Controllers\InventoryController::class);
 Route::resource('sales', App\Http\Controllers\SaleController::class);
 Route::resource('suppliers', App\Http\Controllers\SupplierController::class);
+Route::resource('users', App\Http\Controllers\UserController::class);

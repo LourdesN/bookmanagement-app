@@ -18,7 +18,7 @@
     <div class="col-md-3">
         <div class="card shadow-lg bg-primary text-white hover-card card-users">
         <div class="icon-container">
-            <i class="fas fa-users"></i>
+        <i class="fas fa-book"></i>
         </div>
             <div class="card-body text-center">
                 <h2 class="display-4">{{ $totalbooks }}</h2>
@@ -31,6 +31,62 @@
             </div>
         </div>
     </div>
+
+      <!-- Total Sales -->
+      <div class="col-md-3">
+        <div class="card shadow-lg bg-warning text-white hover-card card-users">
+        <div class="icon-container">
+        <i class="fas fa-money-bill-wave"></i>
+        </div>
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ $formattedTotal }}</h2>
+                <h4 class="lead">Sales</h4>
+            </div>
+            <div class="border-top">
+                <a href="{{ route('sales.index') }}" class="text-decoration-none text-white p-3 d-block text-center">
+                    Manage Sales <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+     <!-- Total Inventories -->
+     <div class="col-md-3">
+        <div class="card shadow-lg bg-danger text-white hover-card card-users">
+        <div class="icon-container">
+        <i class="fas fa-boxes"></i>
+        </div>
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ $totalinventory }}</h2>
+                <h4 class="lead">Inventory</h4>
+            </div>
+            <div class="border-top">
+                <a href="{{ route('sales.index') }}" class="text-decoration-none text-white p-3 d-block text-center">
+                    Manage Inventory <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+     <!-- Total Users -->
+     <div class="col-md-3">
+        <div class="card shadow-lg bg-info text-white hover-card card-users">
+        <div class="icon-container">
+        <i class="fas fa-users"></i>
+        </div>
+            <div class="card-body text-center">
+                <h2 class="display-4">{{ $totalusers }}</h2>
+                <h4 class="lead">Users</h4>
+            </div>
+            <div class="border-top">
+                <a href="{{ route('sales.index') }}" class="text-decoration-none text-white p-3 d-block text-center">
+                    Manage users <i class="fas fa-arrow-right"></i>
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!--end of card-->
 </div>
 </div>
 <style>
@@ -60,10 +116,10 @@
 }
 
 .display-4 {
-    font-size: 3rem;
+    font-size: 4rem;
     font-weight: bold;
     letter-spacing: 2px;
-    font-family: Verdana;
+    font-family:Tangerine;
 }
 
 .card .border-top a {
