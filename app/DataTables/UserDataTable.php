@@ -18,7 +18,14 @@ class UserDataTable extends DataTable
     {
         $dataTable = new EloquentDataTable($query);
 
-        return $dataTable->addColumn('action', 'users.datatables_actions');
+        return $dataTable
+        ->addColumn('change_password', function ($user) {
+            return '<button type="button" class="btn btn-sm btn-warning" data-bs-toggle="modal" data-bs-target="#changePasswordModal" data-user-id="'.$user->id.'" data-user-name="'.$user->name.'">
+                        Change Password
+                    </button>';
+        })
+        ->rawColumns(['action', 'change_password'])
+        ->addColumn('action', 'users.datatables_actions');
     }
 
     /**
@@ -68,7 +75,14 @@ class UserDataTable extends DataTable
         return [
             'name',
             'email',
-            'password'
+            [
+            'title' => 'Change Password',
+            'data' => 'change_password',
+            'orderable' => false,
+            'searchable' => false,
+            'exportable' => false,
+            'printable' => false,
+        ],
         ];
     }
 

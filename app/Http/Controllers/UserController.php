@@ -124,4 +124,23 @@ class UserController extends AppBaseController
 
         return redirect(route('users.index'));
     }
+    public function changePasswordForm($id)
+{
+    $user = User::findOrFail($id);
+    return view('users.change_password', compact('user'));
+}
+public function updatePassword(Request $request)
+{
+    $request->validate([
+        'user_id' => 'required|exists:users,id',
+        'new_password' => 'required|string|min:6|confirmed',
+    ]);
+
+    $user = User::findOrFail($request->user_id);
+    $user->password = bcrypt($request->new_password);
+    $user->save();
+
+    return redirect()->back()->with('success', 'Password updated successfully.');
+}
+
 }

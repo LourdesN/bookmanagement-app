@@ -41,3 +41,6 @@ Route::resource('inventories', App\Http\Controllers\InventoryController::class);
 Route::resource('sales', App\Http\Controllers\SaleController::class);
 Route::resource('suppliers', App\Http\Controllers\SupplierController::class);
 Route::resource('users', App\Http\Controllers\UserController::class);
+
+Route::get('/users/{id}/change-password', [UserController::class, 'changePasswordForm'])->name('users.change-password');
+Route::post('/users/update-password', [App\Http\Controllers\UserController::class, 'updatePassword'])->name('users.update-password');
