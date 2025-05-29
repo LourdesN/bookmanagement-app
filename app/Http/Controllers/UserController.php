@@ -10,6 +10,7 @@ use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
 use Flash;
 
+
 class UserController extends AppBaseController
 {
     /** @var UserRepository $userRepository*/

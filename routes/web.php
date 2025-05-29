@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\InventoryController;
+
 
 /*
 |--------------------------------------------------------------------------
@@ -37,6 +39,7 @@ Auth::routes();
 Route::resource('books', App\Http\Controllers\BookController::class);
 Route::resource('customers', App\Http\Controllers\CustomerController::class);
 Route::resource('deliveries', App\Http\Controllers\DeliveryController::class);
+Route::get('/inventories/pdf', [InventoryController::class, 'downloadPDF'])->name('inventories.downloadPDF');
 Route::resource('inventories', App\Http\Controllers\InventoryController::class);
 Route::resource('sales', App\Http\Controllers\SaleController::class);
 Route::resource('suppliers', App\Http\Controllers\SupplierController::class);
@@ -44,3 +47,4 @@ Route::resource('users', App\Http\Controllers\UserController::class);
 
 Route::get('/users/{id}/change-password', [UserController::class, 'changePasswordForm'])->name('users.change-password');
 Route::post('/users/update-password', [App\Http\Controllers\UserController::class, 'updatePassword'])->name('users.update-password');
+

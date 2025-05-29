@@ -12,6 +12,7 @@ use Flash;
 use App\Models\Book;
 use App\Models\Supplier;
 use RealRashid\SweetAlert\Facades\Alert;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class InventoryController extends AppBaseController
 {
@@ -30,6 +31,18 @@ class InventoryController extends AppBaseController
     {
     return $inventoryDataTable->render('inventories.index');
     }
+
+
+public function downloadPDF()
+{
+    $data = [
+        'inventories' => \App\Models\Inventory::with('book')->get()
+    ];
+
+    return Pdf::loadView('pdf.inventory', $data)
+              ->setPaper('a4', 'landscape') // optional: set orientation
+              ->download('inventory.pdf');
+}
 
 
     /**
