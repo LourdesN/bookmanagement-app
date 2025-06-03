@@ -14,22 +14,43 @@ class SaleDataTable extends DataTable
      * @param mixed $query Results from query() method.
      * @return \Yajra\DataTables\DataTableAbstract
      */
-    public function dataTable($query)
-    {
-        $dataTable = new EloquentDataTable($query);
-    
-        return $dataTable
-            ->addColumn('book_title', function ($sale) {
-                return optional($sale->book)->title;
-            })
-            ->addColumn('customer_name', function ($sale) {
-                return optional($sale->customer)->first_name . ' ' . optional($sale->customer)->last_name;
-            })
-            ->editColumn('unit_price', function ($sale) {
-                return 'Kshs. ' . number_format($sale->unit_price, 2);
-            })
-            ->addColumn('action', 'sales.datatables_actions');
+ public function dataTable($query)
+{
+    $dataTable = new EloquentDataTable($query);
+
+    $dataTable
+        ->addColumn('book_title', function ($sale) {
+            return optional($sale->book)->title;
+        })
+        ->addColumn('customer_name', function ($sale) {
+            return optional($sale->customer)->first_name . ' ' . optional($sale->customer)->last_name;
+        })
+        ->editColumn('unit_price', function ($sale) {
+            return 'Kshs. ' . number_format($sale->unit_price, 2);
+        })
+        ->editColumn('total', function ($sale) {
+            return 'Kshs. ' . number_format($sale->total, 2);
+        })
+        ->editColumn('balance_due', function ($sale) {
+            return 'Kshs. ' . number_format($sale->total - $sale->amount_paid, 2);
+        })
+        ->editColumn('amount_paid', function ($sale) {
+            return 'Kshs. ' . number_format($sale->amount_paid, 2);
+        })
+        ->addColumn('new payment', function ($sale) {
+    if ($sale->payment_status !== 'Paid') {
+        return '<a href="' . route('payments.create', ['sale_id' => $sale->id]) . '" class="btn btn-sm btn-primary">Make Payment</a>';
+    } else {
+        return '<span class="badge badge-success">Paid</span>';
     }
+})
+
+        ->addColumn('action', 'sales.datatables_actions')
+        ->rawColumns(['new payment', 'action']);
+
+    return $dataTable;
+}
+
     
 
     /**
@@ -82,7 +103,10 @@ class SaleDataTable extends DataTable
             'quantity',
             'unit_price',
             'total',
+            'balance_due',
+            'amount_paid',
             'payment_status',
+            'new payment' => ['title' => 'New Payment', 'data' => 'new payment', 'orderable' => false, 'searchable' => false],
         ];
     }
     

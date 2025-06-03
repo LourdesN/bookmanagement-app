@@ -14,7 +14,9 @@ class Sale extends Model
         'quantity',
         'unit_price',
         'total',
-        'payment_status'
+        'payment_status',
+        'amount_paid',
+   
     ];
 
     protected $casts = [
@@ -39,4 +41,9 @@ class Sale extends Model
     {
         return $this->belongsTo(\App\Models\Customer::class, 'customer_id');
     }
+    public function payments()
+{
+    return $this->hasMany(Payment::class);
+}
+
 }

@@ -49,6 +49,13 @@
 </li>
 
 <li class="nav-item">
+    <a href="{{ route('payments.index') }}" class="nav-link {{ Request::is('payments*') ? 'active' : '' }}">
+        <i class="fas fa-credit-card text-info"></i>
+        <p>Payments</p>
+    </a>
+</li>
+
+<li class="nav-item">
     <a href="{{ route('users.index') }}" class="nav-link {{ Request::is('users*') ? 'active' : '' }}">
         <i class="fas fa-user-circle text-info"></i>
         <p>Users</p>

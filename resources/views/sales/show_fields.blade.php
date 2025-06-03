@@ -19,18 +19,33 @@
 <!-- Unit Price Field -->
 <div class="col-sm-12">
     {!! Form::label('unit_price', 'Unit Price:') !!}
-    <p>{{ $sale->unit_price }}</p>
+    <p>kshs. {{ $sale->unit_price }}</p>
 </div>
 
 <!-- Total Field -->
 <div class="col-sm-12">
     {!! Form::label('total', 'Total:') !!}
-    <p>{{ $sale->total }}</p>
+    <p>kshs. {{ $sale->total }}</p>
 </div>
 
 <!-- Payment Status Field -->
 <div class="col-sm-12">
     {!! Form::label('payment_status', 'Payment Status:') !!}
-    <p>{{ $sale->payment_status }}</p>
+    <p> {{ $sale->payment_status }}</p>
 </div>
+
+<!-- Amount Paid Field -->
+<div class="col-sm-12">
+    {!! Form::label('amount_paid', 'Amount Paid:') !!}
+    <p>kshs. {{  $sale->amount_paid  }}</p>
+</div>
+
+<!-- Balance Due Field -->
+<div class="col-sm-12">
+    {!! Form::label('balance_due', 'Balance Due:') !!}
+    <p>kshs. {{ $sale->balance_due }}</p>
+</div>
+
+
+
 

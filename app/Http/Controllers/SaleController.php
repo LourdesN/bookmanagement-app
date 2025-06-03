@@ -12,6 +12,7 @@ use Flash;
 use App\Models\Book;
 use App\Models\Customer;
 use App\Models\Inventory;
+use App\Models\Payment;
 use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -50,43 +51,59 @@ class SaleController extends AppBaseController
      */
     
     public function store(CreateSaleRequest $request)
-    {
-        $input = $request->all();
-    
-        DB::beginTransaction();
-    
-        try {
-            // Get the inventory for the book
-            $inventory = Inventory::where('book_id', $input['book_id'])->first();
-    
-            if (!$inventory) {
-                Flash::error('No inventory found for this book.');
-                return redirect()->back();
-            }
-    
-            if ($inventory->quantity < $input['quantity']) {
-                Flash::error('Insufficient inventory quantity for this sale.');
-                return redirect()->back();
-            }
-    
-            // Create the sale
-            $sale = $this->saleRepository->create($input);
-    
-            // Deduct inventory quantity
-            $inventory->decrement('quantity', $input['quantity']);
-    
-            DB::commit();
-    
-            Alert::success('Success', 'Sale saved and inventory updated successfully.');
-    
-            return redirect(route('sales.index'));
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
+{
+    $input = $request->all();
+
+    DB::beginTransaction();
+
+    try {
+        // Step 1: Check inventory
+        $inventory = Inventory::where('book_id', $input['book_id'])->first();
+
+        if (!$inventory) {
+            Flash::error('No inventory found for this book.');
             return redirect()->back();
         }
+
+        if ($inventory->quantity < $input['quantity']) {
+            Flash::error('Insufficient inventory quantity for this sale.');
+            return redirect()->back();
+        }
+
+        // Step 2: Determine payment status
+        $total = $input['total']; // make sure 'total' is in your request
+        $amountPaid = $input['amount_paid'] ?? 0;
+
+        $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
+                                    ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
+
+        // Step 3: Create sale
+        $sale = $this->saleRepository->create($input);
+
+        // Step 4: Deduct inventory
+        $inventory->decrement('quantity', $input['quantity']);
+
+        // Step 5: Log payment if any
+        if ($amountPaid > 0) {
+            Payment::create([
+                'sale_id' => $sale->id,
+                'amount' => $amountPaid,
+                'payment_date' => now(),
+            ]);
+        }
+
+        DB::commit();
+
+        Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
+        return redirect(route('sales.index'));
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
+        return redirect()->back();
     }
-    
+}
+
 
     /**
      * Display the specified Sale.

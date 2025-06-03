@@ -3,7 +3,9 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
-
+use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\UserController;
+use Illuminate\Support\Facades\Auth;
 
 /*
 |--------------------------------------------------------------------------
@@ -47,4 +49,12 @@ Route::resource('users', App\Http\Controllers\UserController::class);
 
 Route::get('/users/{id}/change-password', [UserController::class, 'changePasswordForm'])->name('users.change-password');
 Route::post('/users/update-password', [App\Http\Controllers\UserController::class, 'updatePassword'])->name('users.update-password');
+
+Route::get('/payments/create/{sale_id}', [PaymentController::class, 'create'])->name('payments.create');
+Route::post('/payments/store', [PaymentController::class, 'store'])->name('payments.store');
+Route::get('/payments', [PaymentController::class, 'index'])->name('payments.index');
+Route::get('payments/download-pdf', [PaymentController::class, 'downloadPdf'])->name('payments.downloadPdf');
+
+
+
 

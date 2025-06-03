@@ -26,6 +26,7 @@
         <div class="card">
             @include('sales.table')
         </div>
+
     </div>
 
 @endsection
