@@ -13,6 +13,7 @@ use App\Models\Book;
 use App\Models\Customer;
 use App\Models\Inventory;
 use App\Models\Payment;
+use App\Models\Sale;
 use Illuminate\Support\Facades\DB;
 use RealRashid\SweetAlert\Facades\Alert;
 
@@ -108,21 +109,22 @@ class SaleController extends AppBaseController
     /**
      * Display the specified Sale.
      */
-    public function show($id)
-    {
-        $sale = $this->saleRepository->find($id);
+   public function show($id)
+{
+    $saleId = (int) $id; // cast directly
+    $sale = $this->saleRepository->find($saleId);
 
-        if (empty($sale)) {
-            Flash::error('Sale not found');
-
-            return redirect(route('sales.index'));
-        }
-        $books = Book::pluck('title', 'id');
-        $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
-                             ->pluck('name', 'id');
-
-        return view('sales.show', compact('sale', 'books', 'customers'));
+    if (empty($sale)) {
+        Flash::error('Sale not found');
+        return redirect(route('sales.index'));
     }
+
+    $books = Book::pluck('title', 'id');
+    $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
+                         ->pluck('name', 'id');
+
+    return view('sales.show', compact('sale', 'books', 'customers'));
+}
 
     /**
      * Show the form for editing the specified Sale.
@@ -184,4 +186,14 @@ class SaleController extends AppBaseController
 
         return redirect(route('sales.index'));
     }
+   public function debtors()
+{
+    $debtors = Sale::with('customer', 'book')
+        ->where('payment_status', '!=', 'Paid')
+        ->get();
+
+    return view('sales.debtors', compact('debtors'));
+}
+
+
 }

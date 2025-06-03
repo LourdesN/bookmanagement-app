@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\PaymentController;
+use App\Http\Controllers\SaleController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Auth;
 
@@ -43,6 +44,7 @@ Route::resource('customers', App\Http\Controllers\CustomerController::class);
 Route::resource('deliveries', App\Http\Controllers\DeliveryController::class);
 Route::get('/inventories/pdf', [InventoryController::class, 'downloadPDF'])->name('inventories.downloadPDF');
 Route::resource('inventories', App\Http\Controllers\InventoryController::class);
+Route::get('/sales/debtors', [App\Http\Controllers\SaleController::class, 'debtors'])->name('sales.debtors');
 Route::resource('sales', App\Http\Controllers\SaleController::class);
 Route::resource('suppliers', App\Http\Controllers\SupplierController::class);
 Route::resource('users', App\Http\Controllers\UserController::class);

@@ -4,7 +4,7 @@
 <div class="container">
     <h2 class="mb-4">Payments</h2>
 
-   <a href="{{ route('payments.downloadPdf') }}" class="btn btn-danger mb-3">
+   <a href="{{ route('payments.downloadPdf') }}" class="btn btn-success mb-3">
         <i class="fas fa-file-pdf"></i> Download PDF
     </a>
     
