@@ -36,7 +36,6 @@
                 <th>Book Title</th>
                 <th>Quantity</th>
                 <th>Location</th>
-                <th>Delivery Date</th>
             </tr>
         </thead>
         <tbody>
@@ -46,7 +45,6 @@
                     <td>{{ $inventory->book->title ?? 'N/A' }}</td>
                     <td>{{ $inventory->quantity }}</td>
                     <td>{{ $inventory->location }}</td>
-                    <td>{{ \Carbon\Carbon::parse($inventory->delivery_date)->format('d-m-Y') }}</td>
                 </tr>
             @endforeach
         </tbody>
