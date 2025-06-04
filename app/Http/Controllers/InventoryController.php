@@ -10,9 +10,13 @@ use App\Repositories\InventoryRepository;
 use Illuminate\Http\Request;
 use Flash;
 use App\Models\Book;
+use App\Models\Inventory;
 use App\Models\Supplier;
+use App\Notifications\ReorderLevelAlert;
 use RealRashid\SweetAlert\Facades\Alert;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Notifications\Notification;
+use Illuminate\Support\Facades\Notification as FacadesNotification;
 
 class InventoryController extends AppBaseController
 {
@@ -143,4 +147,18 @@ public function downloadPDF()
 
         return redirect(route('inventories.index'));
     }
+    public function updateInventoryFromDelivery($book_id, $quantity)
+{
+    $inventory = Inventory::firstOrCreate(['book_id' => $book_id]);
+
+    $inventory->increment('quantity', $quantity);
+
+    // Check reorder level
+    $book = $inventory->book; // assuming a relationship defined
+    if ($inventory->quantity <= $book->reorder_level) {
+        FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+            ->notify(new ReorderLevelAlert($inventory));
+    }
+}
+
 }

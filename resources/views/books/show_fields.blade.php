@@ -29,3 +29,9 @@
     <p>{{ $book->description }}</p>
 </div>
 
+<!-- Reorder Level Field -->
+<div class="col-sm-12">
+    {!! Form::label('reorder_level', 'Reorder Level:') !!}
+    <p>{{ $book->reorder_level }}</p>
+</div>
+

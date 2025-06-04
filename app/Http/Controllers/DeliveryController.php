@@ -10,9 +10,13 @@ use App\Repositories\DeliveryRepository;
 use Illuminate\Http\Request;
 use Flash;
 use App\Models\Book;
+use App\Models\Delivery;
 use App\Models\Supplier;
 use App\Models\Inventory;
+use App\Models\User;
+use App\Notifications\ReorderLevelAlert;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use RealRashid\SweetAlert\Facades\Alert;
 
 
@@ -49,40 +53,53 @@ class DeliveryController extends AppBaseController
     /**
      * Store a newly created Delivery in storage.
      */
-
-public function store(CreateDeliveryRequest $request)
+public function store(Request $request)
 {
-    $input = $request->all();
+    $request->validate([
+        'supplier_id' => 'required|exists:suppliers,id',
+        'book_id' => 'required|exists:books,id',
+        'quantity' => 'required|integer|min:1',
+        'delivery_date' => 'required|date',
+    ]);
 
-    DB::transaction(function () use ($input) {
-        // Save delivery through repository
-        $delivery = $this->deliveryRepository->create($input);
+    // Store delivery
+    $delivery = Delivery::create([
+        'supplier_id' => $request->supplier_id,
+        'book_id' => $request->book_id,
+        'quantity' => $request->quantity,
+        'delivery_date' => $request->delivery_date,
+    ]);
 
-        // Try to find inventory for this book and location
-        $inventory = Inventory::where('book_id', $input['book_id'])
-            ->where('location', $input['location']) // Ensure this field is in the form
-            ->first();
+    // Update inventory
+    $inventory = Inventory::firstOrCreate(
+        ['book_id' => $request->book_id],
+        [
+            'quantity' => 0,
+            'location' => 'KMA Center UpperHill'
+        ]
+    );
 
-        if ($inventory) {
-            // Update existing inventory
-            $inventory->quantity += $input['quantity'];
-            $inventory->delivery_date = $input['delivery_date'];
-            $inventory->save();
-        } else {
-            // Create new inventory entry
-            Inventory::create([
-                'book_id' => $input['book_id'],
-                'quantity' => $input['quantity'],
-                'location' => $input['location'],
-                'delivery_date' => $input['delivery_date'],
-            ]);
+    $inventory->quantity += $request->quantity;
+    $inventory->save();
+
+    // Check against reorder level
+    $book = $inventory->book;
+    if ($inventory->quantity <= $book->reorder_level) {
+        // Notify users only if stock is at or below reorder level
+        Notification::route('mail', 'lourdeswairimu@gmail.com')
+            ->notify(new ReorderLevelAlert($inventory));
+
+        $users = User::all(); // Filter roles if needed
+        foreach ($users as $user) {
+            $user->notify(new ReorderLevelAlert($inventory));
         }
-    });
+    }
 
     Alert::success('Success', 'Delivery saved and inventory updated successfully.');
-
     return redirect(route('deliveries.index'));
 }
+
+
 
     /**
      * Display the specified Delivery.

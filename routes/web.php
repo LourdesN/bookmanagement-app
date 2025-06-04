@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InventoryController;
+use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PaymentController;
 use App\Http\Controllers\SaleController;
 use App\Http\Controllers\UserController;
@@ -58,5 +59,9 @@ Route::get('/payments', [PaymentController::class, 'index'])->name('payments.ind
 Route::get('payments/download-pdf', [PaymentController::class, 'downloadPdf'])->name('payments.downloadPdf');
 
 
-
+Route::get('/notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->name('notifications.markAllRead');
+Route::get('/notifications/mark-all-read', function () {
+    auth()->user()->unreadNotifications->markAsRead();
+    return back();
+})->name('notifications.markAllRead');
 

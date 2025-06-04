@@ -14,7 +14,11 @@ use App\Models\Customer;
 use App\Models\Inventory;
 use App\Models\Payment;
 use App\Models\Sale;
+use App\Models\User;
+use App\Notifications\ReorderLevelAlert;
+use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification as FacadesNotification;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class SaleController extends AppBaseController
@@ -51,7 +55,7 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
     
-    public function store(CreateSaleRequest $request)
+   public function store(CreateSaleRequest $request)
 {
     $input = $request->all();
 
@@ -72,7 +76,7 @@ class SaleController extends AppBaseController
         }
 
         // Step 2: Determine payment status
-        $total = $input['total']; // make sure 'total' is in your request
+        $total = $input['total'];
         $amountPaid = $input['amount_paid'] ?? 0;
 
         $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
@@ -93,6 +97,18 @@ class SaleController extends AppBaseController
             ]);
         }
 
+        // Step 6: Reorder level check and notify
+        $book = $inventory->book; // Assuming `Inventory` has `book()` relationship
+        if ($inventory->fresh()->quantity <= $book->reorder_level) {
+            FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+                ->notify(new ReorderLevelAlert($inventory));
+
+            $users = User::all(); // Filter if needed
+            foreach ($users as $user) {
+                $user->notify(new ReorderLevelAlert($inventory));
+            }
+        }
+
         DB::commit();
 
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
@@ -104,6 +120,7 @@ class SaleController extends AppBaseController
         return redirect()->back();
     }
 }
+
 
 
     /**

@@ -77,7 +77,6 @@ class InventoryDataTable extends DataTable
             'book_title' => ['title' => 'Book Title'],
             'quantity',
             'location',
-            'delivery_date'
         ];
     }
     

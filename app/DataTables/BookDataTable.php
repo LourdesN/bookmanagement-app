@@ -75,7 +75,8 @@ class BookDataTable extends DataTable
             'print_date',
             'unit_cost',
             'isbn',
-            'description'
+            'description',
+            'reorder_level',
         ];
     }
 

@@ -63,6 +63,7 @@ class BookController extends AppBaseController
             Flash::error('Book not found');
 
             return redirect(route('books.index'));
+            
         }
 
         return view('books.show')->with('book', $book);

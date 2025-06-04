@@ -13,7 +13,9 @@ class Book extends Model
         'print_date',
         'unit_cost',
         'isbn',
-        'description'
+        'description',
+        'reorder_level',
+
     ];
 
     protected $casts = [
@@ -28,6 +30,7 @@ class Book extends Model
         'unit_cost' => 'required',
         'isbn' => 'nullable',
         'description' => 'nullable|string|max:65535',
+        'reorder_level' => 'required|integer|min:0',
         'created_at' => 'nullable',
         'updated_at' => 'nullable'
     ];

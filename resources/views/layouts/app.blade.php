@@ -11,6 +11,27 @@
                                 class="fas fa-bars"></i></a>
                     </li>
                 </ul>
+                <li class="nav-item dropdown">
+    <a class="nav-link" data-bs-toggle="dropdown" href="#" title="Notifications">
+        <i class="fas fa-bell"></i>
+        @if(auth()->user()->unreadNotifications->count() > 0)
+            <span class="badge bg-danger">{{ auth()->user()->unreadNotifications->count() }}</span>
+        @endif
+    </a>
+    <div class="dropdown-menu dropdown-menu-xl dropdown-menu-end">
+        @forelse(auth()->user()->unreadNotifications as $notification)
+            <a href="{{ $notification->data['url'] }}" class="dropdown-item">
+                <strong>{{ $notification->data['book_title'] }}</strong><br>
+                <p> {{ $notification->data['message'] }} </p>
+                <span class="text-muted text-sm d-block">{{ $notification->created_at->diffForHumans() }}</span>
+            </a>
+        @empty
+            <span class="dropdown-item text-muted">No new notifications</span>
+        @endforelse
+        <div class="dropdown-divider"></div>
+        <a href="{{ route('notifications.markAllRead') }}" class="dropdown-item dropdown-footer">Mark all as read</a>
+    </div>
+</li>
 
                 <ul class="navbar-nav ml-auto">
                     <li class="nav-item dropdown user-menu">
@@ -62,6 +83,12 @@
                 reserved.
             </footer>
         </div>
+        <!-- jQuery (if not using Bootstrap 5) -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+<!-- Bootstrap JS (for Bootstrap 5) -->
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
         <!-- SweetAlert2 CDN -->
 <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 @yield('scripts')
