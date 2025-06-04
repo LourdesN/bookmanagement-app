@@ -64,4 +64,8 @@ Route::get('/notifications/mark-all-read', function () {
     auth()->user()->unreadNotifications->markAsRead();
     return back();
 })->name('notifications.markAllRead');
+Route::get('/profile', [App\Http\Controllers\ProfileController::class, 'show'])->name('profile.show')->middleware('auth');
+;
+
+Route::post('/profile/update-password', [ProfileController::class, 'updatePassword'])->name('profile.updatePassword');
 
