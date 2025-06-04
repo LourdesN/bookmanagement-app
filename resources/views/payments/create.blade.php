@@ -41,12 +41,17 @@
                             </div>
                         @endif
 
-                        <div class="form-group mb-3">
+                       <div class="form-group mb-3">
                             <label class="fw-bold">Amount Paying Now:</label>
-                            <input type="number" name="amount" class="form-control" required min="1"
-                                   max="{{ $sale ? $sale->total - $sale->amount_paid : '' }}"
-                                   placeholder="Enter amount to pay">
+                            <input type="number" id="amount" name="amount" class="form-control" required min="1" placeholder="Enter amount to pay">
+                            <div id="amount-error" class="text-danger mt-1" style="display: none;"></div>
                         </div>
+                        @if($sale)
+                        <script>
+                       // This safely assigns the PHP value into a JavaScript variable
+                          const remainingAmount = {{ json_encode($sale->total - $sale->amount_paid) }};
+                        </script>
+                        @endif
 
                         <div class="form-group mb-4">
                             <label class="fw-bold">Payment Date:</label>
@@ -66,3 +71,38 @@
     </div>
 </div>
 @endsection
+@section('scripts')
+<script>
+    document.querySelector('form').addEventListener('submit', function(e) {
+        const amountInput = document.querySelector('input[name="amount"]');
+        const amount = parseFloat(amountInput.value);
+        const maxAmount = parseFloat(amountInput.getAttribute('max'));
+
+        if (amount > maxAmount) {
+            e.preventDefault();
+            alert(`The amount cannot exceed the remaining balance of Ksh ${maxAmount.toFixed(2)}`);
+        }
+    });
+</script>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const amountInput = document.getElementById('amount');
+        const errorDiv = document.getElementById('amount-error');
+
+        amountInput.addEventListener('input', function () {
+            const enteredValue = parseFloat(amountInput.value);
+            if (!isNaN(enteredValue) && enteredValue > remainingAmount) {
+                errorDiv.style.display = 'block';
+                errorDiv.textContent = `The amount cannot exceed Ksh ${remainingAmount.toLocaleString()}`;
+                amountInput.classList.add('is-invalid');
+            } else {
+                errorDiv.style.display = 'none';
+                errorDiv.textContent = '';
+                amountInput.classList.remove('is-invalid');
+            }
+        });
+    });
+</script>
+@endsection
+

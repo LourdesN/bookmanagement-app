@@ -29,18 +29,27 @@ public function create($sale_id)
     $sale = Sale::with('customer', 'book')->findOrFail($sale_id);
     return view('payments.create', compact('sale'));
 }
-
-
-
-    public function store(Request $request)
+   public function store(Request $request)
 {
+    // Retrieve sale first for validation
+    $sale = Sale::findOrFail($request->sale_id);
+    $remaining = $sale->total - $sale->amount_paid;
+
+    // Validate input including custom rule for amount
     $request->validate([
         'sale_id' => 'required|exists:sales,id',
-        'amount' => 'required|numeric|min:0.01',
+        'amount' => [
+            'required',
+            'numeric',
+            'min:0.01',
+            function ($attribute, $value, $fail) use ($remaining) {
+                if ($value > $remaining) {
+                    $fail("The amount cannot exceed the remaining balance of Ksh " . number_format($remaining, 2));
+                }
+            },
+        ],
         'payment_date' => 'required|date',
     ]);
-
-    $sale = Sale::findOrFail($request->sale_id);
 
     // Create new payment
     Payment::create([

@@ -7,22 +7,49 @@
         body {
             font-family: DejaVu Sans, sans-serif;
             font-size: 12px;
+            color: #333;
+            margin: 20px;
         }
+
+        h2 {
+            text-align: center;
+            text-transform: uppercase;
+            margin-bottom: 30px;
+            font-size: 18px;
+            border-bottom: 2px solid #444;
+            padding-bottom: 5px;
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: 20px;
+            margin-top: 10px;
         }
+
         th, td {
-            border: 1px solid #444;
-            padding: 8px;
+            border: 1px solid #888;
+            padding: 8px 10px;
             text-align: left;
         }
+
         th {
-            background-color: #f2f2f2;
+            background-color: #e6f2ff;
+            font-weight: bold;
         }
-        h2 {
+
+        tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+
+        tr:hover {
+            background-color: #f1f1f1;
+        }
+
+        .footer {
+            margin-top: 40px;
             text-align: center;
+            font-size: 11px;
+            color: #777;
         }
     </style>
 </head>
@@ -49,5 +76,9 @@
             @endforeach
         </tbody>
     </table>
+
+    <div class="footer">
+        Generated on {{ \Carbon\Carbon::now()->format('F d, Y H:i') }}
+    </div>
 </body>
 </html>
