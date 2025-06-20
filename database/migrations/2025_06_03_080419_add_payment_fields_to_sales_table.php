@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         // Use raw SQL to change the column to enum
-        DB::statement("ALTER TABLE sales MODIFY payment_status ENUM('Paid', 'Partially Paid', 'Unpaid') DEFAULT 'Unpaid'");
+     DB::statement("ALTER TABLE sales ADD CONSTRAINT chk_payment_status CHECK (payment_status IN ('Paid', 'Partially Paid', 'Unpaid'))");
     }
 
     /**
