@@ -16,15 +16,16 @@ RUN apt-get update && apt-get install -y \
     libzip-dev \
     default-mysql-client \
     nginx \
-    supervisor
+    supervisor \
+    libpq-dev # Required for PostgreSQL support
 
 # Install PHP extensions
-RUN docker-php-ext-install pdo pdo_mysql mbstring zip exif pcntl bcmath gd
+RUN docker-php-ext-install pdo pdo_mysql pdo_pgsql pgsql mbstring zip exif pcntl bcmath gd
 
-# Install Composer (from official Composer image)
+# Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
-# Copy project files to container
+# Copy project files
 COPY . /var/www
 
 # Install PHP dependencies
@@ -36,11 +37,8 @@ RUN chown -R www-data:www-data /var/www
 # Use non-root user
 USER www-data
 
-# Expose the Laravel development server port
+# Expose the Laravel dev server port
 EXPOSE 8000
 
-# Run migrations and start Laravel server
-CMD php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=$PORT
-
-
-
+# Run migrations and start the server
+CMD ["/bin/sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT}"]
