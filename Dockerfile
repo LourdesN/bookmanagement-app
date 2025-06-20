@@ -41,5 +41,5 @@ USER www-data
 EXPOSE 8000
 
 # Run migrations and start the server
-CMD ["/bin/sh", "-c", "php artisan migrate --force && php artisan db:seed --force && php artisan serve --host=0.0.0.0 --port=${PORT}"]
+CMD ["/bin/sh", "-c", "php artisan migrate --force && php artisan serve --host=0.0.0.0 --port=${PORT}"]
 
