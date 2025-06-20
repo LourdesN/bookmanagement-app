@@ -57,8 +57,6 @@ class SaleController extends AppBaseController
     
    public function store(CreateSaleRequest $request)
 {
-    dd($request->all());
-
     $input = $request->all();
 
     DB::beginTransaction();
