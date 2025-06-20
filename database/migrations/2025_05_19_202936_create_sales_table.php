@@ -19,6 +19,7 @@ return new class extends Migration
             $table->integer('unit_price');
             $table->integer('total');
             $table->text('payment_status');
+            $table->timestamps();
         });
     }
 
