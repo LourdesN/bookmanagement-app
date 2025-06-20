@@ -55,7 +55,7 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
     
-   public function store(CreateSaleRequest $request)
+  public function store(CreateSaleRequest $request)
 {
     $input = $request->all();
 
@@ -75,12 +75,14 @@ class SaleController extends AppBaseController
             return redirect()->back();
         }
 
-        // Step 2: Determine payment status
+        // Step 2: Determine payment status and balance due
         $total = $input['total'];
         $amountPaid = $input['amount_paid'] ?? 0;
 
         $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
                                     ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
+
+        $input['balance_due'] = $total - $amountPaid;
 
         // Step 3: Create sale
         $sale = $this->saleRepository->create($input);
@@ -98,12 +100,12 @@ class SaleController extends AppBaseController
         }
 
         // Step 6: Reorder level check and notify
-        $book = $inventory->book; // Assuming `Inventory` has `book()` relationship
+        $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
 
-            $users = User::all(); // Filter if needed
+            $users = User::all();
             foreach ($users as $user) {
                 $user->notify(new ReorderLevelAlert($inventory));
             }
