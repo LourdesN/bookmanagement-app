@@ -1,11 +1,17 @@
 services:
   - type: web
-    name: laravel-app
+    name: bookmanagment-app
     env: docker
     plan: free
     branch: main
     dockerfilePath: ./Dockerfile
     autoDeploy: true
+    buildCommand: |
+      composer install --optimize-autoloader --no-dev
+      php artisan config:cache
+    startCommand: |
+      php artisan migrate --seed --force
+      php artisan serve --host=0.0.0.0 --port=8080
     envVars:
       - key: APP_ENV
         value: production
