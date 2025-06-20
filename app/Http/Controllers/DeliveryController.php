@@ -60,6 +60,7 @@ public function store(Request $request)
         'book_id' => 'required|exists:books,id',
         'quantity' => 'required|integer|min:1',
         'delivery_date' => 'required|date',
+        'location' => 'nullable|string|max:255',
     ]);
 
     // Store delivery
@@ -68,6 +69,7 @@ public function store(Request $request)
         'book_id' => $request->book_id,
         'quantity' => $request->quantity,
         'delivery_date' => $request->delivery_date,
+        'location' => $request->location ?? 'KMA Center UpperHill',
     ]);
 
     // Update inventory
