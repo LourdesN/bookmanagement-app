@@ -1,16 +1,6 @@
 @extends('layouts.app')
 
 @section('content')
-@if ($errors->any())
-    <div class="alert alert-danger">
-        <ul>
-            @foreach ($errors->all() as $error)
-                <li>{{ $error }}</li>
-            @endforeach
-        </ul>
-    </div>
-@endif
-
 <section class="content-header bg-info text-white py-3 shadow-sm mb-4">
     <div class="container-fluid">
         <div class="row mb-2">
@@ -24,6 +14,15 @@
 </section>
 
 <div class="content px-3">
+    @if ($errors->any())
+    <div class="alert alert-danger">
+        <ul>
+            @foreach ($errors->all() as $error)
+                <li>{{ $error }}</li>
+            @endforeach
+        </ul>
+    </div>
+@endif
     @include('adminlte-templates::common.errors')
 
     <div class="card shadow border-0">
