@@ -32,6 +32,11 @@ class Sale extends Model
         'payment_status' => 'required|string|max:65535'
     ];
 
+    public function getBalanceDueAttribute()
+{
+    return $this->total - $this->amount_paid;
+}
+
     public function book(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Book::class, 'book_id');

@@ -14,8 +14,6 @@ return new class extends Migration
     {
         Schema::table('sales', function (Blueprint $table) {
               $table->decimal('amount_paid', 10, 2)->default(0);
-            // Add computed/stored `balance_due` column
-            $table->decimal('balance_due', 10, 2)->virtualAs('total - amount_paid');
         });
 
         // Use raw SQL to change the column to enum
