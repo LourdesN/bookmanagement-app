@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
     zip \
     unzip \
     libzip-dev \
-    default-mysql-client \   # ✅ this replaces mysql-client
+    default-mysql-client \
     nginx \
     supervisor
 
