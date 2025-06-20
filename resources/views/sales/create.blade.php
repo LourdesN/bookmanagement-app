@@ -22,6 +22,7 @@
         </div>
 
         {!! Form::open(['route' => 'sales.store']) !!}
+           @csrf
             <div class="card-body">
                 <div class="row g-3">
                     @include('sales.fields')
