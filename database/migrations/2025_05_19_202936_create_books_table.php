@@ -17,8 +17,6 @@ return new class extends Migration
             $table->date('print_date');
             $table->decimal('unit_cost', 10, 2); // Assuming price format
             $table->string('isbn')->nullable();
-            $table->text('description')->nullable();
-            $table->unsignedInteger('reorder_level');
             $table->timestamps();
         });
     }
