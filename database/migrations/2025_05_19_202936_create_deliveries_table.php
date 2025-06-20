@@ -17,7 +17,6 @@ return new class extends Migration
             $table->integer('supplier_id')->index('fk_deliveries_suppliers');
             $table->integer('quantity');
             $table->date('delivery_date');
-            $table->timestamps();
         });
     }
 

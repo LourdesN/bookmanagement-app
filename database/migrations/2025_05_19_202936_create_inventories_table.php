@@ -17,7 +17,7 @@ return new class extends Migration
             $table->integer('quantity');
             $table->string('location', 255);
             $table->date('delivery_date');
-            $table->timestamps();
+
         });
     }
 
