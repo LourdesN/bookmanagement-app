@@ -34,11 +34,7 @@
     {!! Form::number('amount_paid', null, ['class' => 'form-control', 'required', 'id' => 'amount_paid']) !!}
 </div>
 
-<!-- Balance Due Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('balance_due', 'Balance Due:') !!}
-    {!! Form::number('balance_due', null, ['class' => 'form-control', 'readonly', 'id' => 'balance_due']) !!}
-</div>
+
 
 
 <!-- Payment Status (Auto-updated but still submitted) -->

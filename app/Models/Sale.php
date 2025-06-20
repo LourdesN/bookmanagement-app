@@ -16,6 +16,7 @@ class Sale extends Model
         'total',
         'payment_status',
         'amount_paid',
+        'balance_due'
    
     ];
 
@@ -29,7 +30,8 @@ class Sale extends Model
         'quantity' => 'required',
         'unit_price' => 'required',
         'total' => 'required',
-        'payment_status' => 'required|string|max:65535'
+        'payment_status' => 'required|string|max:65535',
+        'balance_due' => 'nullable|numeric',
     ];
 
     public function getBalanceDueAttribute()
