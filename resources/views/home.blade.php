@@ -169,7 +169,11 @@
 .text-white {
     color: white !important;
 }
-
+h3 {
+    font-family: georgia;
+    font-size: 2rem;
+   
+}
 
 </style>
 @endsection
