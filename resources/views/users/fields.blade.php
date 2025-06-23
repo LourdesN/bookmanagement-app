@@ -10,26 +10,30 @@
     {!! Form::email('email', null, ['class' => 'form-control', 'required', 'maxlength' => 191, 'maxlength' => 191]) !!}
 </div>
 
-<!-- Email Verified At Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('email_verified_at', 'Email Verified At:') !!}
-    {!! Form::text('email_verified_at', null, ['class' => 'form-control','id'=>'email_verified_at']) !!}
-</div>
-
-@push('page_scripts')
-    <script type="text/javascript">
-        $('#email_verified_at').datepicker()
-    </script>
-@endpush
-
 <!-- password Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('password', 'Password:') !!}
-    {!! Form::password('password', ['class' => 'form-control', 'required', 'maxlength' => 191, 'maxlength' => 191]) !!}
+    {!! Form::password('password', ['class' => 'form-control', 'required', 'id' => 'password', 'min:8', 'confirmed', 'maxlength' => 191, 'maxlength' => 191]) !!}
 </div>
 
-<!-- Remember Token Field -->
+<!-- Confirm Password Field -->
 <div class="form-group col-sm-6">
-    {!! Form::label('remember_token', 'Remember Token:') !!}
-    {!! Form::text('remember_token', null, ['class' => 'form-control', 'maxlength' => 100, 'maxlength' => 100]) !!}
-</div>
+    {!! Form::label('password_confirmation', 'Confirm Password:') !!}
+    {!! Form::password('password_confirmation', ['class' => 'form-control', 'required', 'id' => 'password_confirmation', 'maxlength' => 191, 'maxlength' => 191]) !!}
+</div>      
+
+<!-- JavaScript to validate matching passwords -->
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.querySelector('form');
+        form.addEventListener('submit', function (e) {
+            const password = document.getElementById('password').value.trim();
+            const confirmPassword = document.getElementById('password_confirmation').value.trim();
+
+            if (password !== confirmPassword) {
+                e.preventDefault();
+                alert('⚠️ Passwords do not match. Please confirm them again.');
+            }
+        });
+    });
+</script>

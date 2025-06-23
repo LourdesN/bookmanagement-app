@@ -9,7 +9,7 @@ use App\Http\Controllers\AppBaseController;
 use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
 use Flash;
-
+use RealRashid\SweetAlert\Facades\Alert;
 
 class UserController extends AppBaseController
 {
@@ -47,7 +47,7 @@ class UserController extends AppBaseController
 
         $user = $this->userRepository->create($input);
 
-        Flash::success('User saved successfully.');
+        Alert::success('User Created', 'The user was added successfully.');
 
         return redirect(route('users.index'));
     }
