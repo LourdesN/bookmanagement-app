@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as FacadesNotification;
 use Laracasts\Flash\Flash as FlashFlash;
 use RealRashid\SweetAlert\Facades\Alert;
+use Illuminate\Support\Facades\Log; 
 
 class SaleController extends AppBaseController
 {
@@ -58,7 +59,10 @@ class SaleController extends AppBaseController
     
 public function store(CreateSaleRequest $request)
 {
+    Log::info('🟢 SaleController@store triggered');
+
     $input = $request->all();
+    Log::info('📥 Input received:', $input);
 
     // ✅ Calculate total-related values once
     $total = $input['total'];
@@ -72,27 +76,29 @@ public function store(CreateSaleRequest $request)
     DB::beginTransaction();
 
     try {
-        // ✅ Step 1: Check inventory
+        Log::info('🔍 Checking inventory for book_id: ' . $input['book_id']);
         $inventory = Inventory::where('book_id', $input['book_id'])->first();
 
         if (!$inventory) {
+            Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
             Flash::error('No inventory found for this book.');
             return redirect()->back();
         }
 
         if ($inventory->quantity < $input['quantity']) {
+            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
             Flash::error('Insufficient inventory quantity for this sale.');
             return redirect()->back();
         }
 
-        // ✅ Step 2: Create sale
+        Log::info('✅ Creating sale...');
         $sale = $this->saleRepository->create($input);
 
-        // ✅ Step 3: Deduct inventory
+        Log::info('📦 Decrementing inventory...');
         $inventory->decrement('quantity', $input['quantity']);
 
-        // ✅ Step 4: Log payment if any
         if ($amountPaid > 0) {
+            Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
                 'sale_id' => $sale->id,
                 'amount' => $amountPaid,
@@ -100,32 +106,30 @@ public function store(CreateSaleRequest $request)
             ]);
         }
 
-        // ✅ Step 5: Reorder notification
+        Log::info("📡 Checking reorder level...");
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
+            Log::info('📨 Sending reorder alert emails...');
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
 
-            $users = User::all(); // optionally filter
-            foreach ($users as $user) {
+            foreach (User::all() as $user) {
                 $user->notify(new ReorderLevelAlert($inventory));
             }
         }
 
         DB::commit();
-
+        Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
         return redirect(route('sales.index'));
 
     } catch (\Exception $e) {
         DB::rollBack();
-
-        // 🛠️ Fix: Typo — you had `FlashFlash::error`
+        Log::error('❌ Exception occurred: ' . $e->getMessage());
         Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
         return redirect()->back();
     }
 }
-
 
     /**
      * Display the specified Sale.
