@@ -1,6 +1,8 @@
 @vite(['resources/css/app.css', 'resources/js/app.js'])
 
 <x-laravel-ui-adminlte::adminlte-layout>
+<!-- Favicon -->
+<link rel="icon" type="image/x-icon" href="{{ asset('favicon.ico') }}">
 
 
     <body class="hold-transition sidebar-mini layout-fixed">
