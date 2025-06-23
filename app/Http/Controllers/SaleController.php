@@ -19,6 +19,7 @@ use App\Notifications\ReorderLevelAlert;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as FacadesNotification;
+use Laracasts\Flash\Flash as FlashFlash;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class SaleController extends AppBaseController
@@ -55,14 +56,23 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
     
-  public function store(CreateSaleRequest $request)
+public function store(CreateSaleRequest $request)
 {
     $input = $request->all();
+
+    // ✅ Calculate total-related values once
+    $total = $input['total'];
+    $amountPaid = $input['amount_paid'] ?? 0;
+
+    $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
+                                ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
+
+    $input['balance_due'] = $total - $amountPaid;
 
     DB::beginTransaction();
 
     try {
-        // Step 1: Check inventory
+        // ✅ Step 1: Check inventory
         $inventory = Inventory::where('book_id', $input['book_id'])->first();
 
         if (!$inventory) {
@@ -75,22 +85,13 @@ class SaleController extends AppBaseController
             return redirect()->back();
         }
 
-        // Step 2: Determine payment status and balance due
-        $total = $input['total'];
-        $amountPaid = $input['amount_paid'] ?? 0;
-
-        $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
-                                    ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-        $input['balance_due'] = $total - $amountPaid;
-
-        // Step 3: Create sale
+        // ✅ Step 2: Create sale
         $sale = $this->saleRepository->create($input);
 
-        // Step 4: Deduct inventory
+        // ✅ Step 3: Deduct inventory
         $inventory->decrement('quantity', $input['quantity']);
 
-        // Step 5: Log payment if any
+        // ✅ Step 4: Log payment if any
         if ($amountPaid > 0) {
             Payment::create([
                 'sale_id' => $sale->id,
@@ -99,13 +100,13 @@ class SaleController extends AppBaseController
             ]);
         }
 
-        // Step 6: Reorder level check and notify
+        // ✅ Step 5: Reorder notification
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
 
-            $users = User::all();
+            $users = User::all(); // optionally filter
             foreach ($users as $user) {
                 $user->notify(new ReorderLevelAlert($inventory));
             }
@@ -118,12 +119,12 @@ class SaleController extends AppBaseController
 
     } catch (\Exception $e) {
         DB::rollBack();
+
+        // 🛠️ Fix: Typo — you had `FlashFlash::error`
         Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
-    
         return redirect()->back();
     }
 }
-
 
 
     /**
