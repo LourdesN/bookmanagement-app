@@ -119,6 +119,7 @@ class SaleController extends AppBaseController
     } catch (\Exception $e) {
         DB::rollBack();
         Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
+    
         return redirect()->back();
     }
 }
