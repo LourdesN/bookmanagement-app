@@ -29,7 +29,7 @@
         @if (Route::has('login'))
             <div class="top-right text-end">
                 @auth
-                    <a href="{{ url('/dashboard') }}" class="btn btn-outline-primary btn-sm me-2">
+                    <a href="{{ url('/home') }}" class="btn btn-outline-primary btn-sm me-2">
                         <i class="fa fa-user"></i> Dashboard
                     </a>
                 @else
