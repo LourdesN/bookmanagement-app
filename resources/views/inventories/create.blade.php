@@ -26,7 +26,7 @@
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
 </div>
 
-        {!! Form::open(['route' => 'inventories.store']) !!}
+        {!! Form::open(['route' => 'inventories.store', 'id' => 'inventory-form']) !!}
             <div class="card-body">
                 <div class="row g-3">
                     @include('inventories.fields')
@@ -34,12 +34,34 @@
             </div>
 
             <div class="card-footer bg-light d-flex justify-content-between">
-                {!! Form::submit('✅ Save', ['class' => 'btn btn-success']) !!}
+              <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#confirmInventoryModal">
+    ✅ Save
+</button>
                 <a href="{{ route('inventories.index') }}" class="btn btn-secondary">❌ Cancel</a>
             </div>
         {!! Form::close() !!}
     </div>
 </div>
+
+<!-- Confirmation Modal -->
+<div class="modal fade" id="confirmInventoryModal" tabindex="-1" aria-labelledby="confirmInventoryLabel" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content shadow border-0">
+      <div class="modal-header bg-warning text-dark">
+        <h5 class="modal-title fw-bold" id="confirmInventoryLabel">⚠️ Important Notice</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        Inventories are automatically created when deliveries are added. Are you sure you want to manually add an inventory?
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">❌ Cancel</button>
+        <button type="submit" class="btn btn-success" onclick="document.getElementById('inventory-form').submit();">✅ Yes, Continue</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 @endsection
 @yield('scripts')
 <script>
