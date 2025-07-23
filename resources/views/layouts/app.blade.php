@@ -23,7 +23,7 @@
             <span class="badge bg-danger">{{ auth()->user()->unreadNotifications->count() }}</span>
         @endif
     </a>
-    <div class="dropdown-menu dropdown-menu-xl dropdown-menu-end">
+    <div class="dropdown-menu dropdown-menu-xxl dropdown-menu-end">
         @forelse(auth()->user()->unreadNotifications as $notification)
             <a href="{{ $notification->data['url'] }}" class="dropdown-item">
                 <strong>{{ $notification->data['book_title'] }}</strong><br>
