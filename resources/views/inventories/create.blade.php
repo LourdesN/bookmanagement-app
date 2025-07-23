@@ -6,7 +6,7 @@
         <div class="row mb-2">
             <div class="col-sm-12">
                 <h1 class="mb-0">
-                    <i class="fas fa-boxes me-2"></i> Create Inventories
+                    <i class="fas fa-boxes me-2"></i> Create Inventories [if you create a delivery an inventory is automatically added to the system]
                 </h1>
             </div>
         </div>

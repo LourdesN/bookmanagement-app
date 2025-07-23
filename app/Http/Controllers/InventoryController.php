@@ -8,7 +8,6 @@ use App\Http\Requests\UpdateInventoryRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\InventoryRepository;
 use Illuminate\Http\Request;
-use Flash;
 use App\Models\Book;
 use App\Models\Inventory;
 use App\Models\Supplier;
@@ -80,7 +79,7 @@ public function downloadPDF()
         $inventory = $this->inventoryRepository->find($id);
 
         if (empty($inventory)) {
-            Flash::error('Inventory not found');
+            Alert::error('Inventory not found');
 
             return redirect(route('inventories.index'));
         }
@@ -96,7 +95,7 @@ public function downloadPDF()
         $inventory = $this->inventoryRepository->find($id);
 
         if (empty($inventory)) {
-            Flash::error('Inventory not found');
+            Alert::error('Inventory not found');
 
             return redirect(route('inventories.index'));
         }
@@ -114,14 +113,14 @@ public function downloadPDF()
         $inventory = $this->inventoryRepository->find($id);
 
         if (empty($inventory)) {
-            Flash::error('Inventory not found');
+            Alert::error('Inventory not found');
 
             return redirect(route('inventories.index'));
         }
 
         $inventory = $this->inventoryRepository->update($request->all(), $id);
 
-        Flash::success('Inventory updated successfully.');
+        Alert::success('Inventory updated successfully.');
 
         return redirect(route('inventories.index'));
     }
@@ -136,7 +135,7 @@ public function downloadPDF()
         $inventory = $this->inventoryRepository->find($id);
 
         if (empty($inventory)) {
-            Flash::error('Inventory not found');
+            Alert::error('Inventory not found');
 
             return redirect(route('inventories.index'));
         }

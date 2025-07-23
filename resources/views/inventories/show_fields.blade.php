@@ -16,9 +16,4 @@
     <p>{{ $inventory->location }}</p>
 </div>
 
-<!-- Delivery Date Field -->
-<div class="col-sm-12">
-    {!! Form::label('delivery_date', 'Delivery Date:') !!}
-    <p>{{ $inventory->delivery_date }}</p>
-</div>
 
