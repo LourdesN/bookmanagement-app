@@ -7,8 +7,6 @@ use App\Http\Requests\CreateSupplierRequest;
 use App\Http\Requests\UpdateSupplierRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\SupplierRepository;
-use Illuminate\Http\Request;
-use Flash;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class SupplierController extends AppBaseController
@@ -60,7 +58,7 @@ class SupplierController extends AppBaseController
         $supplier = $this->supplierRepository->find($id);
 
         if (empty($supplier)) {
-            Flash::error('Supplier not found');
+            Alert::error('Supplier not found');
 
             return redirect(route('suppliers.index'));
         }
@@ -76,7 +74,7 @@ class SupplierController extends AppBaseController
         $supplier = $this->supplierRepository->find($id);
 
         if (empty($supplier)) {
-            Flash::error('Supplier not found');
+            Alert::error('Supplier not found');
 
             return redirect(route('suppliers.index'));
         }
@@ -92,14 +90,14 @@ class SupplierController extends AppBaseController
         $supplier = $this->supplierRepository->find($id);
 
         if (empty($supplier)) {
-            Flash::error('Supplier not found');
+            Alert::error('Supplier not found');
 
             return redirect(route('suppliers.index'));
         }
 
         $supplier = $this->supplierRepository->update($request->all(), $id);
 
-        Flash::success('Supplier updated successfully.');
+        Alert::success('Supplier updated successfully.');
 
         return redirect(route('suppliers.index'));
     }
@@ -114,7 +112,7 @@ class SupplierController extends AppBaseController
         $supplier = $this->supplierRepository->find($id);
 
         if (empty($supplier)) {
-            Flash::error('Supplier not found');
+            Alert::error('Supplier not found');
 
             return redirect(route('suppliers.index'));
         }

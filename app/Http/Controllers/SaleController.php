@@ -7,8 +7,6 @@ use App\Http\Requests\CreateSaleRequest;
 use App\Http\Requests\UpdateSaleRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\SaleRepository;
-use Illuminate\Http\Request;
-use Flash;
 use App\Models\Book;
 use App\Models\Customer;
 use App\Models\Inventory;
@@ -19,7 +17,7 @@ use App\Notifications\ReorderLevelAlert;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as FacadesNotification;
-use Laracasts\Flash\Flash as FlashFlash;
+use Laracasts\Alert\Alert as AlertAlert;
 use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\Log; 
 
@@ -81,13 +79,13 @@ public function store(CreateSaleRequest $request)
 
         if (!$inventory) {
             Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
-            Flash::error('No inventory found for this book.');
+            Alert::error('No inventory found for this book.');
             return redirect()->back();
         }
 
         if ($inventory->quantity < $input['quantity']) {
             Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
-            Flash::error('Insufficient inventory quantity for this sale.');
+            Alert::error('Insufficient inventory quantity for this sale.');
             return redirect()->back();
         }
 
@@ -126,7 +124,7 @@ public function store(CreateSaleRequest $request)
     } catch (\Exception $e) {
         DB::rollBack();
         Log::error('❌ Exception occurred: ' . $e->getMessage());
-        Flash::error('An error occurred while saving the sale: ' . $e->getMessage());
+        Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
         return redirect()->back();
     }
 }
@@ -140,7 +138,7 @@ public function store(CreateSaleRequest $request)
     $sale = $this->saleRepository->find($saleId);
 
     if (empty($sale)) {
-        Flash::error('Sale not found');
+        Alert::error('Sale not found');
         return redirect(route('sales.index'));
     }
 
@@ -159,7 +157,7 @@ public function store(CreateSaleRequest $request)
         $sale = $this->saleRepository->find($id);
 
         if (empty($sale)) {
-            Flash::error('Sale not found');
+            Alert::error('Sale not found');
 
             return redirect(route('sales.index'));
         }
@@ -178,14 +176,14 @@ public function store(CreateSaleRequest $request)
         $sale = $this->saleRepository->find($id);
 
         if (empty($sale)) {
-            Flash::error('Sale not found');
+            Alert::error('Sale not found');
 
             return redirect(route('sales.index'));
         }
 
         $sale = $this->saleRepository->update($request->all(), $id);
 
-        Flash::success('Sale updated successfully.');
+        Alert::success('Sale updated successfully.');
 
         return redirect(route('sales.index'));
     }
@@ -200,7 +198,7 @@ public function store(CreateSaleRequest $request)
         $sale = $this->saleRepository->find($id);
 
         if (empty($sale)) {
-            Flash::error('Sale not found');
+            Alert::error('Sale not found');
 
             return redirect(route('sales.index'));
         }

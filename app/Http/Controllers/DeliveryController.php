@@ -8,7 +8,6 @@ use App\Http\Requests\UpdateDeliveryRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\DeliveryRepository;
 use Illuminate\Http\Request;
-use Flash;
 use App\Models\Book;
 use App\Models\Delivery;
 use App\Models\Supplier;
@@ -111,7 +110,7 @@ public function store(Request $request)
         $delivery = $this->deliveryRepository->find($id);
 
         if (empty($delivery)) {
-            Flash::error('Delivery not found');
+            Alert::error('Delivery not found');
 
             return redirect(route('deliveries.index'));
         }
@@ -134,7 +133,7 @@ public function edit($id)
     $delivery = $this->deliveryRepository->find($id);
 
     if (empty($delivery)) {
-        Flash::error('Delivery not found');
+        Alert::error('Delivery not found');
         return redirect(route('deliveries.index'));
     }
 
@@ -154,14 +153,14 @@ public function edit($id)
         $delivery = $this->deliveryRepository->find($id);
 
         if (empty($delivery)) {
-            Flash::error('Delivery not found');
+            Alert::error('Delivery not found');
 
             return redirect(route('deliveries.index'));
         }
 
         $delivery = $this->deliveryRepository->update($request->all(), $id);
 
-        Flash::success('Delivery updated successfully.');
+        Alert::success('Delivery updated successfully.');
 
         return redirect(route('deliveries.index'));
     }
@@ -171,20 +170,30 @@ public function edit($id)
      *
      * @throws \Exception
      */
-    public function destroy($id)
-    {
-        $delivery = $this->deliveryRepository->find($id);
+  public function destroy($id)
+{
+    $delivery = $this->deliveryRepository->find($id);
 
-        if (empty($delivery)) {
-            Flash::error('Delivery not found');
-
-            return redirect(route('deliveries.index'));
-        }
-
-        $this->deliveryRepository->delete($id);
-
-        Alert::success('Success', 'Delivery deleted successfully.');
-
+    if (empty($delivery)) {
+        Alert::error('Delivery not found');
         return redirect(route('deliveries.index'));
     }
+
+    // Adjust inventory
+    $inventory = Inventory::where('book_id', $delivery->book_id)->first();
+    if ($inventory) {
+        $inventory->quantity -= $delivery->quantity;
+        if ($inventory->quantity < 0) {
+            $inventory->quantity = 0;
+        }
+        $inventory->save();
+    }
+
+    // Delete delivery
+    $this->deliveryRepository->delete($id);
+
+    Alert::success('Success', 'Delivery deleted and inventory updated successfully.');
+    return redirect(route('deliveries.index'));
+}
+
 }

@@ -6,9 +6,9 @@ use App\DataTables\UserDataTable;
 use App\Http\Requests\CreateUserRequest;
 use App\Http\Requests\UpdateUserRequest;
 use App\Http\Controllers\AppBaseController;
+use App\Models\User;
 use App\Repositories\UserRepository;
 use Illuminate\Http\Request;
-use Flash;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class UserController extends AppBaseController
@@ -60,7 +60,7 @@ class UserController extends AppBaseController
         $user = $this->userRepository->find($id);
 
         if (empty($user)) {
-            Flash::error('User not found');
+            Alert::error('User not found');
 
             return redirect(route('users.index'));
         }
@@ -76,7 +76,7 @@ class UserController extends AppBaseController
         $user = $this->userRepository->find($id);
 
         if (empty($user)) {
-            Flash::error('User not found');
+            Alert::error('User not found');
 
             return redirect(route('users.index'));
         }
@@ -92,14 +92,14 @@ class UserController extends AppBaseController
         $user = $this->userRepository->find($id);
 
         if (empty($user)) {
-            Flash::error('User not found');
+            Alert::error('User not found');
 
             return redirect(route('users.index'));
         }
 
         $user = $this->userRepository->update($request->all(), $id);
 
-        Flash::success('User updated successfully.');
+        Alert::success('User updated successfully.');
 
         return redirect(route('users.index'));
     }
@@ -114,14 +114,14 @@ class UserController extends AppBaseController
         $user = $this->userRepository->find($id);
 
         if (empty($user)) {
-            Flash::error('User not found');
+            Alert::error('User not found');
 
             return redirect(route('users.index'));
         }
 
         $this->userRepository->delete($id);
 
-        Flash::success('User deleted successfully.');
+        Alert::success('User deleted successfully.');
 
         return redirect(route('users.index'));
     }
