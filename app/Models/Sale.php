@@ -15,8 +15,7 @@ class Sale extends Model
         'unit_price',
         'total',
         'payment_status',
-        'amount_paid',
-        'balance_due'
+        'amount_paid'
    
     ];
 

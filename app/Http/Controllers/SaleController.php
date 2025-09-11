@@ -90,7 +90,7 @@ public function store(CreateSaleRequest $request)
         }
 
         Log::info('✅ Creating sale...');
-        $sale = $this->saleRepository->create($input);
+       $sale = Sale::create($input);
 
         Log::info('📦 Decrementing inventory...');
         $inventory->decrement('quantity', $input['quantity']);
