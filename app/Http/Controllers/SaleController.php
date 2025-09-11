@@ -63,14 +63,14 @@ public function store(CreateSaleRequest $request)
     $data = $request->validated();
     Log::info('📥 Input received:', $data);
 
-    // ✅ Cast numeric fields to match DB types
+    // ✅ Cast numeric fields
     $data['quantity']    = (int) ($data['quantity'] ?? 0);
-    $data['unit_price']  = (float) ($data['unit_price'] ?? 0); // NUMERIC(10,2)
-    $data['total']       = (float) ($data['total'] ?? 0);      // NUMERIC(10,2)
-    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);// NUMERIC(10,2)
-    $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']); // NUMERIC(10,2)
+    $data['unit_price']  = (float) ($data['unit_price'] ?? 0);
+    $data['total']       = (float) ($data['total'] ?? 0);
+    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);
+    $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
 
-    // Determine payment status
+    // ✅ Determine payment status
     $data['payment_status'] = match (true) {
         $data['amount_paid'] >= $data['total'] => 'Paid',
         $data['amount_paid'] > 0 => 'Partially Paid',
@@ -80,7 +80,7 @@ public function store(CreateSaleRequest $request)
     try {
         DB::transaction(function () use ($data) {
 
-            // ✅ Foreign key checks
+            // ✅ Check foreign keys
             if (!Book::where('id', $data['book_id'])->exists()) {
                 throw new \Exception("Book with ID {$data['book_id']} does not exist.");
             }
@@ -89,10 +89,8 @@ public function store(CreateSaleRequest $request)
             }
 
             // 🔍 Check inventory
-            $inventory = Inventory::where('book_id', $data['book_id'])->first();
-            if (!$inventory) {
-                throw new \Exception("No inventory found for this book.");
-            }
+            $inventory = Inventory::where('book_id', $data['book_id'])->firstOrFail();
+
             if ($inventory->quantity < $data['quantity']) {
                 throw new \Exception("Insufficient inventory. Available: {$inventory->quantity}");
             }
@@ -106,10 +104,10 @@ public function store(CreateSaleRequest $request)
                 'total'          => $data['total'],
                 'balance_due'    => $data['balance_due'],
                 'amount_paid'    => $data['amount_paid'],
-                'payment_status' => $data['payment_status'], // plain string
+                'payment_status' => $data['payment_status'],
             ]);
 
-            // 📦 Update inventory
+            // 📦 Decrement inventory
             $inventory->decrement('quantity', $data['quantity']);
 
             // 💰 Record payment if any
@@ -121,12 +119,11 @@ public function store(CreateSaleRequest $request)
                 ]);
             }
 
-            // 📡 Reorder notification
-            if ($inventory->fresh()->quantity <= $inventory->book->reorder_level) {
+            // 📡 Reorder notifications
+            if ($inventory->fresh()->book && $inventory->quantity <= $inventory->book->reorder_level) {
                 $this->sendReorderNotifications($inventory);
             }
-
-        }); // DB::transaction automatically commits or rolls back
+        });
 
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
@@ -150,7 +147,6 @@ private function sendReorderNotifications(Inventory $inventory)
 
     User::all()->each(fn($user) => $user->notify(new ReorderLevelAlert($inventory)));
 }
-
 
 
 
