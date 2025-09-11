@@ -56,8 +56,6 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
     
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 public function store(CreateSaleRequest $request)
 {
