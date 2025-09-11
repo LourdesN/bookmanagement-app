@@ -14,6 +14,7 @@ use App\Models\Payment;
 use App\Models\Sale;
 use App\Models\User;
 use App\Notifications\ReorderLevelAlert;
+use Illuminate\Http\Request;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification as FacadesNotification;
@@ -57,73 +58,58 @@ class SaleController extends AppBaseController
      */
     
 
-public function store(CreateSaleRequest $request)
+public function store(Request $request)
 {
-    $data = $request->validated(); // get validated data
+    $data = $request->all();
+
+    DB::beginTransaction();
 
     try {
-        DB::transaction(function () use ($data) {
+        // Fetch inventory by book_id
+        $inventory = Inventory::where('book_id', $data['book_id'])->first();
 
-            // 1️⃣ Create Sale
-            try {
-                $sale = Sale::create($data);
-            } catch (\Throwable $e) {
-                Log::error("Sale creation failed: ".$e->getMessage(), ['data' => $data]);
-                throw new \Exception("Failed to create sale: ".$e->getMessage());
-            }
+        if (!$inventory) {
+            // Throw an exception if inventory not found
+            throw new \Exception("Inventory not found for book_id: {$data['book_id']}");
+        }
 
-            // 2️⃣ Fetch Inventory
-            try {
-                $inventory = Inventory::findOrFail($data['book_id']);
-            } catch (\Throwable $e) {
-                Log::error("Inventory fetch failed: ".$e->getMessage(), ['data' => $data]);
-                throw new \Exception("Inventory not found for book_id: ".$data['book_id']);
-            }
+        if ($inventory->quantity < $data['quantity']) {
+            throw new \Exception("Not enough stock for book_id: {$data['book_id']}");
+        }
 
-            // 3️⃣ Check quantity
-            if ($inventory->quantity < $data['quantity']) {
-                $msg = "Insufficient inventory: {$inventory->quantity} available, {$data['quantity']} requested";
-                Log::error($msg, ['data' => $data]);
-                throw new \Exception($msg);
-            }
+        // Decrement inventory
+        $inventory->decrement('quantity', $data['quantity']);
 
-            // 4️⃣ Decrement Inventory
-            try {
-                $inventory->decrement('quantity', $data['quantity']);
-            } catch (\Throwable $e) {
-                Log::error("Inventory decrement failed: ".$e->getMessage(), ['data' => $data]);
-                throw new \Exception("Failed to decrement inventory: ".$e->getMessage());
-            }
+        // Create the sale
+        Sale::create([
+            'book_id' => $data['book_id'],
+            'customer_id' => $data['customer_id'],
+            'quantity' => $data['quantity'],
+            'unit_price' => $data['unit_price'],
+            'total' => $data['total'],
+            'balance_due' => $data['balance_due'],
+            'amount_paid' => $data['amount_paid'] ?? 0,
+            'payment_status' => $data['payment_status'] ?? 'Unpaid',
+        ]);
 
-            // 5️⃣ Create Payment (if any)
-            if (!empty($data['amount_paid']) && $data['amount_paid'] > 0) {
-                try {
-                    Payment::create([
-                        'sale_id' => $sale->id,
-                        'amount' => $data['amount_paid'],
-                        'payment_date' => now(),
-                    ]);
-                } catch (\Throwable $e) {
-                    Log::error("Payment creation failed: ".$e->getMessage(), ['data' => $data]);
-                    throw new \Exception("Failed to create payment: ".$e->getMessage());
-                }
-            }
-        });
+        DB::commit();
 
-        // Success
-        session()->flash('success', 'Sale completed successfully.');
-        return redirect()->route('sales.index');
+        return response()->json([
+            'success' => true,
+            'message' => 'Sale completed successfully!'
+        ]);
+    } catch (\Exception $e) {
+        DB::rollBack();
 
-    } catch (\Throwable $e) {
-        // 6️⃣ Catch everything and show user-friendly error
-        $errorMessage = $e->getMessage();
-        Log::error("Sale failed: ".$errorMessage, ['data' => $data]);
-        session()->flash('error', 'Sale failed: '.$errorMessage);
-        return redirect()->back()->withInput();
+        // Log the error and display on the page
+        \Log::error('Sale failed: '.$e->getMessage(), $data);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Sale failed: ' . $e->getMessage()
+        ], 400);
     }
 }
-
-
 
     /**
      * Display the specified Sale.
