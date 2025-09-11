@@ -96,7 +96,8 @@ $data['payment_status'] = (string) $data['payment_status'];
 
         // ✅ Create sale
         Log::info('✅ Creating sale...', $data);
-        $sale = $this->saleRepository->create($data);
+        $sale = Sale::create($data);
+
 
         // 📦 Update inventory
         $inventory->decrement('quantity', $data['quantity']);
