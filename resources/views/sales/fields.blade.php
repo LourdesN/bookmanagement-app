@@ -58,12 +58,15 @@
         updatePaymentStatus();
     }
 
-    function calculateBalanceDue() {
-        let total = parseFloat(document.getElementById('total').value) || 0;
-        let amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
-        let balanceDue = total - amountPaid;
-        document.getElementById('balance_due').value = balanceDue.toFixed(2);
-    }
+   function calculateBalanceDue() {
+    let total = parseFloat(document.getElementById('total').value) || 0;
+    let amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
+    let balanceDue = total - amountPaid;
+
+    if (balanceDue < 0) balanceDue = 0; // prevent negative
+
+    document.getElementById('balance_due').value = balanceDue.toFixed(2);
+}
 
     function updatePaymentStatus() {
         let total = parseFloat(document.getElementById('total').value) || 0;

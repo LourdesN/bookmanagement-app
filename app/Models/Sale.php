@@ -29,9 +29,26 @@ class Sale extends Model
         'quantity' => 'required',
         'unit_price' => 'required',
         'total' => 'required',
-        'payment_status' => 'required|string|max:65535',
+        'payment_status' => 'required|string|max:50',
         'balance_due' => 'nullable|numeric',
     ];
+
+    protected static function booted()
+{
+    static::saving(function ($sale) {
+        if ($sale->amount_paid >= $sale->total) {
+            $sale->payment_status = 'Paid';
+        } elseif ($sale->amount_paid > 0) {
+            $sale->payment_status = 'Partially Paid';
+        } else {
+            $sale->payment_status = 'Unpaid';
+        }
+
+        // prevent negative balance
+        $sale->balance_due = max(0, $sale->total - $sale->amount_paid);
+    });
+}
+
 
     public function getBalanceDueAttribute()
 {
