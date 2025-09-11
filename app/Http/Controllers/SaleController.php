@@ -59,25 +59,30 @@ public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
 
-    $data = $request->all();
+    // ✅ Use validated data
+    $data = $request->validated();
     Log::info('📥 Input received:', $data);
-    
-    // ✅ Cast numeric fields to avoid Postgres errors
-    $data['quantity']     = (int) $data['quantity'];
-    $data['unit_price']   = (float) $data['unit_price'];
-    $data['total']        = (float) $data['total'];
-    $data['amount_paid']  = isset($data['amount_paid']) ? (float) $data['amount_paid'] : 0;
 
-    // ✅ Calculate balance and payment status
-    $data['balance_due'] = $data['total'] - $data['amount_paid'];
-    $data['payment_status'] = $data['amount_paid'] >= $data['total'] 
-        ? 'Paid' 
-        : ($data['amount_paid'] > 0 ? 'Partially Paid' : 'Unpaid');
-     
-// 🔒 Force string to avoid Postgres treating it as unquoted identifier
-$data['payment_status'] = (string) $data['payment_status']; // already there
-$data['payment_status'] = trim($data['payment_status'], "'"); // strip rogue quotes
+    // ✅ Cast numeric fields to correct types
+    $data['quantity']     = (int) ($data['quantity'] ?? 0);
+    $data['unit_price']   = (float) ($data['unit_price'] ?? 0);
+    $data['total']        = (float) ($data['total'] ?? 0);
+    $data['amount_paid']  = (float) ($data['amount_paid'] ?? 0);
 
+    // ✅ Calculate balance & enforce non-negative
+    $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
+
+    // ✅ Backend-driven payment status (ignore form input)
+    if ($data['amount_paid'] >= $data['total']) {
+        $data['payment_status'] = 'Paid';
+    } elseif ($data['amount_paid'] > 0) {
+        $data['payment_status'] = 'Partially Paid';
+    } else {
+        $data['payment_status'] = 'Unpaid';
+    }
+
+    // 🔒 Ensure it’s a clean string for Postgres
+    $data['payment_status'] = trim((string) $data['payment_status'], "'");
 
     DB::beginTransaction();
 
@@ -100,7 +105,6 @@ $data['payment_status'] = trim($data['payment_status'], "'"); // strip rogue quo
         Log::info('✅ Creating sale...', $data);
         $sale = Sale::create($data);
 
-
         // 📦 Update inventory
         $inventory->decrement('quantity', $data['quantity']);
 
@@ -113,7 +117,7 @@ $data['payment_status'] = trim($data['payment_status'], "'"); // strip rogue quo
             ]);
         }
 
-        // 📡 Check reorder level
+        // 📡 Reorder level check
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             Log::info('📨 Sending reorder alert emails...');

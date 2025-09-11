@@ -1,100 +1,67 @@
-<!-- Book Id Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('book_id', 'Book Title:') !!}
-    {!! Form::select('book_id', $books, null, ['class' => 'form-control', 'placeholder' => 'Select Book', 'required']) !!}
+<div class="row">
+    <!-- Book -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('book_id', 'Book:') !!}
+        {!! Form::select('book_id', $books, null, ['class' => 'form-control', 'id' => 'book_id', 'required']) !!}
+    </div>
+
+    <!-- Customer -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('customer_id', 'Customer:') !!}
+        {!! Form::select('customer_id', $customers, null, ['class' => 'form-control', 'id' => 'customer_id', 'required']) !!}
+    </div>
+
+    <!-- Quantity -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('quantity', 'Quantity:') !!}
+        <input type="number" class="form-control" name="quantity" id="quantity" value="1" min="1" required>
+    </div>
+
+    <!-- Unit Price -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('unit_price', 'Unit Price:') !!}
+        <input type="number" class="form-control" name="unit_price" id="unit_price" step="0.01" required>
+    </div>
+
+    <!-- Total (readonly) -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('total', 'Total:') !!}
+        <input type="text" class="form-control" name="total" id="total" readonly>
+    </div>
+
+    <!-- Amount Paid -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('amount_paid', 'Amount Paid:') !!}
+        <input type="number" class="form-control" name="amount_paid" id="amount_paid" step="0.01" required>
+    </div>
+
+    <!-- Balance Due (readonly) -->
+    <div class="form-group col-sm-6">
+        {!! Form::label('balance_due', 'Balance Due:') !!}
+        <input type="text" class="form-control" name="balance_due" id="balance_due" readonly>
+    </div> 
+
 </div>
-
-<!-- Customer Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('customer_id', 'Customer Name:') !!}
-    {!! Form::select('customer_id', $customers, null, ['class' => 'form-control', 'placeholder' => 'Select Customer', 'required']) !!}
-</div>
-
-<!-- Quantity Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('quantity', 'Quantity:') !!}
-    {!! Form::number('quantity', null, ['class' => 'form-control', 'required', 'id' => 'quantity']) !!}
-</div>
-
-<!-- Unit Price Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('unit_price', 'Unit Price:') !!}
-    {!! Form::number('unit_price', null, ['class' => 'form-control', 'required', 'id' => 'unit_price']) !!}
-</div>
-
-<!-- Total Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('total', 'Total:') !!}
-    {!! Form::number('total', null, ['class' => 'form-control', 'readonly' => true, 'id' => 'total']) !!}
-</div>
-
-<!-- Amount Paid Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('amount_paid', 'Amount Paid:') !!}
-    {!! Form::number('amount_paid', null, ['class' => 'form-control', 'required', 'id' => 'amount_paid']) !!}
-</div>
-
-<!-- Balance Due Field -->
-<div class="form-group col-sm-6">
-    {!! Form::label('balance_due', 'Balance Due:') !!}
-    {!! Form::number('balance_due', null, ['class' => 'form-control', 'readonly' => true, 'id' => 'balance_due']) !!}
-</div>
-
-
-<!-- Payment Status (Display Only but still submitted) -->
-<div class="form-group col-sm-6">
-    {!! Form::label('payment_status', 'Payment Status:') !!}
-    <input type="text" class="form-control" id="payment_status_display" value="Unpaid" readonly>
-    <input type="hidden" name="payment_status" id="payment_status" value="Unpaid">
-</div>
-
 
 <script>
-    function calculateTotal() {
-        let quantity = parseFloat(document.getElementById('quantity').value) || 0;
-        let unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
-        document.getElementById('total').value = (quantity * unitPrice).toFixed(2);
-        calculateBalanceDue();
-        updatePaymentStatus();
-    }
-
-   function calculateBalanceDue() {
-    let total = parseFloat(document.getElementById('total').value) || 0;
-    let amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
-    let balanceDue = total - amountPaid;
-
-    if (balanceDue < 0) balanceDue = 0; // prevent negative
-
-    document.getElementById('balance_due').value = balanceDue.toFixed(2);
+function calculateTotal() {
+    let qty = parseFloat(document.getElementById("quantity").value) || 0;
+    let unitPrice = parseFloat(document.getElementById("unit_price").value) || 0;
+    let total = qty * unitPrice;
+    document.getElementById("total").value = total.toFixed(2);
+    calculateBalanceDue();
 }
 
-    function updatePaymentStatus() {
-        let total = parseFloat(document.getElementById('total').value) || 0;
-        let paid = parseFloat(document.getElementById('amount_paid').value) || 0;
-        let status = 'Unpaid';
+function calculateBalanceDue() {
+    let total = parseFloat(document.getElementById("total").value) || 0;
+    let amountPaid = parseFloat(document.getElementById("amount_paid").value) || 0;
+    let balance = total - amountPaid;
+    document.getElementById("balance_due").value = balance.toFixed(2);
+}
 
-        if (paid >= total) {
-            status = 'Paid';
-        } else if (paid > 0 && paid < total) {
-            status = 'Partially Paid';
-        }
-
-        // Update both fields
-        document.getElementById('payment_status_display').value = status;
-        document.getElementById('payment_status').value = status;
-    }
-
-
-    document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('quantity').addEventListener('input', calculateTotal);
-        document.getElementById('unit_price').addEventListener('input', calculateTotal);
-        document.getElementById('amount_paid').addEventListener('input', () => {
-            calculateBalanceDue();
-            updatePaymentStatus();
-        });
-
-        // Calculate on load
-        calculateTotal();
-        updatePaymentStatus();
-    });
+// Auto-calc on input
+document.getElementById("quantity").addEventListener("input", calculateTotal);
+document.getElementById("unit_price").addEventListener("input", calculateTotal);
+document.getElementById("amount_paid").addEventListener("input", calculateBalanceDue);
 </script>
+
