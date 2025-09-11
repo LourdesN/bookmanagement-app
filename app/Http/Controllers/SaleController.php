@@ -58,11 +58,6 @@ class SaleController extends AppBaseController
      */
     
 
-use App\Models\Inventory;
-use App\Models\Sale;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
-
 public function store(Request $request)
 {
     $data = $request->all();
