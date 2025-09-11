@@ -64,26 +64,19 @@ public function store(CreateSaleRequest $request)
     Log::info('📥 Input received:', $data);
 
     // ✅ Cast numeric fields to correct types
-    $data['quantity']     = (int) ($data['quantity'] ?? 0);
-    $data['unit_price']   = (float) ($data['unit_price'] ?? 0);
-    $data['total']        = (float) ($data['total'] ?? 0);
-    $data['amount_paid']  = (float) ($data['amount_paid'] ?? 0);
+    $data['quantity']    = (int) ($data['quantity'] ?? 0);
+    $data['unit_price']  = (float) ($data['unit_price'] ?? 0);
+    $data['total']       = (float) ($data['total'] ?? 0);
+    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);
 
-    // ✅ Calculate balance & enforce non-negative
+    // ✅ Calculate balance & payment status
     $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
 
-    // ✅ Backend-driven payment status (ignore form input)
-    if ($data['amount_paid'] >= $data['total']) {
-        $data['payment_status'] = 'Paid';
-    } elseif ($data['amount_paid'] > 0) {
-        $data['payment_status'] = 'Partially Paid';
-    } else {
-        $data['payment_status'] = 'Unpaid';
-    }
-
-    // 🔒 Ensure it’s a clean string for Postgres
-  $data['payment_status'] = DB::raw("'" . $data['payment_status'] . "'");
-
+    $data['payment_status'] = match (true) {
+        $data['amount_paid'] >= $data['total'] => 'Paid',
+        $data['amount_paid'] > 0 => 'Partially Paid',
+        default => 'Unpaid',
+    };
 
     DB::beginTransaction();
 
@@ -104,7 +97,6 @@ public function store(CreateSaleRequest $request)
 
         // ✅ Create sale
         Log::info('✅ Creating sale...', $data);
-        unset($data['payment_status']);
         $sale = Sale::create($data);
 
         // 📦 Update inventory
@@ -119,23 +111,26 @@ public function store(CreateSaleRequest $request)
             ]);
         }
 
-        // 📡 Reorder level check
+        // 📡 Reorder level check & notifications
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             Log::info('📨 Sending reorder alert emails...');
+            
+            // Notify admin email
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
 
-            foreach (User::all() as $user) {
+            // Notify all users
+            User::all()->each(function ($user) use ($inventory) {
                 $user->notify(new ReorderLevelAlert($inventory));
-            }
+            });
         }
 
         DB::commit();
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
 
-        return redirect(route('sales.index'));
+        return redirect()->route('sales.index');
 
     } catch (\Exception $e) {
         DB::rollBack();
