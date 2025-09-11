@@ -61,7 +61,7 @@ public function store(CreateSaleRequest $request)
 
     $data = $request->all();
     Log::info('📥 Input received:', $data);
-
+    
     // ✅ Cast numeric fields to avoid Postgres errors
     $data['quantity']     = (int) $data['quantity'];
     $data['unit_price']   = (float) $data['unit_price'];
@@ -73,6 +73,9 @@ public function store(CreateSaleRequest $request)
     $data['payment_status'] = $data['amount_paid'] >= $data['total'] 
         ? 'Paid' 
         : ($data['amount_paid'] > 0 ? 'Partially Paid' : 'Unpaid');
+     
+// 🔒 Force string to avoid Postgres treating it as unquoted identifier
+$data['payment_status'] = (string) $data['payment_status'];
 
     DB::beginTransaction();
 
