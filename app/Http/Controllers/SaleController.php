@@ -66,7 +66,7 @@ public function store(CreateSaleRequest $request)
 
     // Cast numeric fields to correct types
     $data['quantity']    = (int) ($data['quantity'] ?? 0);
-    $data['unit_price']  = (int) ($data['unit_price'] ?? 0);      // INTEGER in DB
+    $data['unit_price']  = (float) ($data['unit_price'] ?? 0);    
     $data['total']       = (float) ($data['total'] ?? 0);        // NUMERIC(10,2)
     $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);  // NUMERIC(10,2)
     $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']); // NUMERIC(10,2)
@@ -189,11 +189,12 @@ private function sendReorderNotifications(Inventory $inventory)
 
             return redirect(route('sales.index'));
         }
+        $booksData = Book::pluck('unit_cost', 'id');
         $books = Book::pluck('title', 'id');
         $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
                              ->pluck('name', 'id');
 
-        return view('sales.edit', compact('sale', 'books', 'customers'));
+        return view('sales.edit', compact('sale', 'books', 'customers', 'booksData'));
     }
 
     /**
