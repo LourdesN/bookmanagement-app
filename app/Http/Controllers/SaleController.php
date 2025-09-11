@@ -75,7 +75,9 @@ public function store(CreateSaleRequest $request)
         : ($data['amount_paid'] > 0 ? 'Partially Paid' : 'Unpaid');
      
 // 🔒 Force string to avoid Postgres treating it as unquoted identifier
-$data['payment_status'] = (string) $data['payment_status'];
+$data['payment_status'] = (string) $data['payment_status']; // already there
+$data['payment_status'] = trim($data['payment_status'], "'"); // strip rogue quotes
+
 
     DB::beginTransaction();
 
