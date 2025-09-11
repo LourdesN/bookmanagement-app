@@ -59,52 +59,55 @@ public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
 
-    $input = $request->all();
-    Log::info('📥 Input received:', $input);
+    $data = $request->all();
+    Log::info('📥 Input received:', $data);
 
-    // ✅ Calculate total-related values once
-    $total = $input['total'];
-    $amountPaid = $input['amount_paid'] ?? 0;
+    // ✅ Cast numeric fields to avoid Postgres errors
+    $data['quantity']     = (int) $data['quantity'];
+    $data['unit_price']   = (float) $data['unit_price'];
+    $data['total']        = (float) $data['total'];
+    $data['amount_paid']  = isset($data['amount_paid']) ? (float) $data['amount_paid'] : 0;
 
-    $input['payment_status'] = $amountPaid >= $total ? 'Paid' :
-                                ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-    $input['balance_due'] = $total - $amountPaid;
+    // ✅ Calculate balance and payment status
+    $data['balance_due'] = $data['total'] - $data['amount_paid'];
+    $data['payment_status'] = $data['amount_paid'] >= $data['total'] 
+        ? 'Paid' 
+        : ($data['amount_paid'] > 0 ? 'Partially Paid' : 'Unpaid');
 
     DB::beginTransaction();
 
     try {
-        Log::info('🔍 Checking inventory for book_id: ' . $input['book_id']);
-        $inventory = Inventory::where('book_id', $input['book_id'])->first();
-
+        // 🔍 Check inventory
+        $inventory = Inventory::where('book_id', $data['book_id'])->first();
         if (!$inventory) {
-            Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
+            Log::warning("❌ Inventory not found for book_id: {$data['book_id']}");
             Alert::error('No inventory found for this book.');
-            return redirect()->back();
+            return redirect()->back()->withInput();
         }
 
-        if ($inventory->quantity < $input['quantity']) {
-            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
+        if ($inventory->quantity < $data['quantity']) {
+            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$data['quantity']}");
             Alert::error('Insufficient inventory quantity for this sale.');
-            return redirect()->back();
+            return redirect()->back()->withInput();
         }
 
-        Log::info('✅ Creating sale...');
-       $sale = Sale::create($input);
+        // ✅ Create sale
+        Log::info('✅ Creating sale...', $data);
+        $sale = $this->saleRepository->create($data);
 
-        Log::info('📦 Decrementing inventory...');
-        $inventory->decrement('quantity', $input['quantity']);
+        // 📦 Update inventory
+        $inventory->decrement('quantity', $data['quantity']);
 
-        if ($amountPaid > 0) {
-            Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
+        // 💰 Save payment if any
+        if ($data['amount_paid'] > 0) {
             Payment::create([
-                'sale_id' => $sale->id,
-                'amount' => $amountPaid,
+                'sale_id'      => $sale->id,
+                'amount'       => $data['amount_paid'],
                 'payment_date' => now(),
             ]);
         }
 
-        Log::info("📡 Checking reorder level...");
+        // 📡 Check reorder level
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             Log::info('📨 Sending reorder alert emails...');
@@ -119,15 +122,17 @@ public function store(CreateSaleRequest $request)
         DB::commit();
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
+
         return redirect(route('sales.index'));
 
     } catch (\Exception $e) {
         DB::rollBack();
         Log::error('❌ Exception occurred: ' . $e->getMessage());
         Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
-        return redirect()->back();
+        return redirect()->back()->withInput();
     }
 }
+
 
     /**
      * Display the specified Sale.
