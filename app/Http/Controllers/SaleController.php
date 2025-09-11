@@ -61,92 +61,79 @@ public function store(CreateSaleRequest $request)
     Log::info('🟢 SaleController@store triggered');
 
     $data = $request->validated();
+
     Log::info('📥 Input received:', $data);
 
-    // ✅ Cast numeric fields
-    $data['quantity']    = (int) ($data['quantity'] ?? 0);
-    $data['unit_price']  = (float) ($data['unit_price'] ?? 0);
-    $data['total']       = (float) ($data['total'] ?? 0);
-    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);
-    $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
+    // Cast numeric fields
+    $data['quantity']     = (int) ($data['quantity'] ?? 0);
+    $data['unit_price']   = (float) ($data['unit_price'] ?? 0);
+    $data['total']        = (float) ($data['total'] ?? 0);
+    $data['amount_paid']  = (float) ($data['amount_paid'] ?? 0);
+    $data['balance_due']  = max(0, $data['total'] - $data['amount_paid']);
 
-    // ✅ Determine payment status
-    $data['payment_status'] = match (true) {
-        $data['amount_paid'] >= $data['total'] => 'Paid',
-        $data['amount_paid'] > 0 => 'Partially Paid',
-        default => 'Unpaid',
-    };
+    // Backend-driven payment status
+    if ($data['amount_paid'] >= $data['total']) {
+        $data['payment_status'] = 'Paid';
+    } elseif ($data['amount_paid'] > 0) {
+        $data['payment_status'] = 'Partially Paid';
+    } else {
+        $data['payment_status'] = 'Unpaid';
+    }
 
     try {
-        DB::transaction(function () use ($data) {
+        // 🔹 Verify foreign keys before starting transaction
+        if (!Customer::where('id', $data['customer_id'])->exists()) {
+            throw new \Exception("Customer ID {$data['customer_id']} does not exist");
+        }
+        if (!Book::where('id', $data['book_id'])->exists()) {
+            throw new \Exception("Book ID {$data['book_id']} does not exist");
+        }
 
-            // ✅ Check foreign keys
-            if (!Book::where('id', $data['book_id'])->exists()) {
-                throw new \Exception("Book with ID {$data['book_id']} does not exist.");
-            }
-            if (!Customer::where('id', $data['customer_id'])->exists()) {
-                throw new \Exception("Customer with ID {$data['customer_id']} does not exist.");
-            }
+        $inventory = Inventory::where('book_id', $data['book_id'])->first();
+        if (!$inventory) {
+            throw new \Exception("Inventory not found for book ID {$data['book_id']}");
+        }
+        if ($inventory->quantity < $data['quantity']) {
+            throw new \Exception("Insufficient inventory quantity");
+        }
 
-            // 🔍 Check inventory
-            $inventory = Inventory::where('book_id', $data['book_id'])->firstOrFail();
+        // 🔹 Start fresh transaction
+        DB::transaction(function () use ($data, $inventory) {
+            // Create sale
+            $sale = Sale::create($data);
 
-            if ($inventory->quantity < $data['quantity']) {
-                throw new \Exception("Insufficient inventory. Available: {$inventory->quantity}");
-            }
-
-            // ✅ Create sale
-            $sale = Sale::create([
-                'book_id'        => $data['book_id'],
-                'customer_id'    => $data['customer_id'],
-                'quantity'       => $data['quantity'],
-                'unit_price'     => $data['unit_price'],
-                'total'          => $data['total'],
-                'balance_due'    => $data['balance_due'],
-                'amount_paid'    => $data['amount_paid'],
-                'payment_status' => $data['payment_status'],
-            ]);
-
-            // 📦 Decrement inventory
+            // Decrement inventory
             $inventory->decrement('quantity', $data['quantity']);
 
-            // 💰 Record payment if any
+            // Create payment if any
             if ($data['amount_paid'] > 0) {
                 Payment::create([
-                    'sale_id'      => $sale->id,
-                    'amount'       => $data['amount_paid'],
+                    'sale_id' => $sale->id,
+                    'amount' => $data['amount_paid'],
                     'payment_date' => now(),
                 ]);
             }
 
-            // 📡 Reorder notifications
-            if ($inventory->fresh()->book && $inventory->quantity <= $inventory->book->reorder_level) {
-                $this->sendReorderNotifications($inventory);
+            // Optional: send reorder alerts
+            $book = $inventory->book;
+            if ($inventory->fresh()->quantity <= $book->reorder_level) {
+                foreach (User::all() as $user) {
+                    $user->notify(new ReorderLevelAlert($inventory));
+                }
             }
         });
 
         Log::info('✅ Sale completed successfully');
-        Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
+        Alert::success('Sale completed successfully');
         return redirect()->route('sales.index');
 
     } catch (\Exception $e) {
-        Log::error('❌ Exception occurred: ' . $e->getMessage());
-        Alert::error('An error occurred: ' . $e->getMessage());
+        Log::error('❌ Sale failed: ' . $e->getMessage());
+        Alert::error('Sale failed: ' . $e->getMessage());
         return redirect()->back()->withInput();
     }
 }
 
-/**
- * Sends reorder notifications to admin and users.
- */
-private function sendReorderNotifications(Inventory $inventory)
-{
-    Log::info('📨 Sending reorder alert emails...');
-    FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
-        ->notify(new ReorderLevelAlert($inventory));
-
-    User::all()->each(fn($user) => $user->notify(new ReorderLevelAlert($inventory)));
-}
 
 
 
