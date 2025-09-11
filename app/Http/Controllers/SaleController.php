@@ -60,22 +60,22 @@ public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
 
-    // ✅ 1. Force a fresh DB connection to avoid poisoned transactions
+    // 1️⃣ Force a fresh DB connection
     DB::disconnect();
     DB::reconnect();
 
-    // ✅ 2. Use validated data
+    // 2️⃣ Get validated data
     $data = $request->validated();
     Log::info('📥 Input received:', $data);
 
-    // ✅ 3. Cast numeric fields
+    // 3️⃣ Cast numeric fields
     $data['quantity']    = (int) ($data['quantity'] ?? 0);
     $data['unit_price']  = (float) ($data['unit_price'] ?? 0);
     $data['total']       = (float) ($data['total'] ?? 0);
     $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);
     $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
 
-    // ✅ 4. Determine payment status
+    // 4️⃣ Determine payment status
     if ($data['amount_paid'] >= $data['total']) {
         $data['payment_status'] = 'Paid';
     } elseif ($data['amount_paid'] > 0) {
@@ -85,26 +85,30 @@ public function store(CreateSaleRequest $request)
     }
 
     try {
-        // 🔹 5. Pre-check foreign keys outside transaction
+        // 5️⃣ Pre-check foreign keys
         if (!Customer::where('id', $data['customer_id'])->exists()) {
             throw new \Exception("Customer ID {$data['customer_id']} does not exist");
         }
+
         if (!Book::where('id', $data['book_id'])->exists()) {
             throw new \Exception("Book ID {$data['book_id']} does not exist");
         }
 
-        // 🔹 6. Pre-check inventory outside transaction
-        $inventory = Inventory::where('book_id', $data['book_id'])->firstOrFail();
+        // 6️⃣ Pre-check inventory
+        $inventory = Inventory::where('book_id', $data['book_id'])->first();
+        if (!$inventory) {
+            throw new \Exception("Inventory not found for book ID {$data['book_id']}");
+        }
+
         if ($inventory->quantity < $data['quantity']) {
             throw new \Exception("Insufficient inventory. Available: {$inventory->quantity}, Requested: {$data['quantity']}");
         }
 
-        // 🔹 7. Wrap all DB writes in a fresh transaction
+        // 7️⃣ Wrap actual DB writes in transaction
         DB::transaction(function () use ($data, $inventory) {
-            // Create sale
             $sale = Sale::create($data);
 
-            // Decrement inventory
+            // Update inventory
             $inventory->decrement('quantity', $data['quantity']);
 
             // Record payment if any
@@ -115,26 +119,25 @@ public function store(CreateSaleRequest $request)
                     'payment_date' => now(),
                 ]);
             }
-
-            // Optional: reorder alerts
-            $book = $inventory->book;
-            if ($inventory->fresh()->quantity <= $book->reorder_level) {
-                foreach (User::all() as $user) {
-                    $user->notify(new ReorderLevelAlert($inventory));
-                }
-            }
         });
 
         Log::info('✅ Sale completed successfully');
         Alert::success('Sale completed successfully');
         return redirect()->route('sales.index');
 
-    } catch (\Exception $e) {
-        Log::error('❌ Sale failed: ' . $e->getMessage());
+    } catch (\Throwable $e) {
+        // 8️⃣ Log full error
+        Log::error('❌ Sale failed: ' . $e->getMessage(), [
+            'exception' => $e,
+            'data' => $data,
+        ]);
+
+        // 9️⃣ Display error to user on page
         Alert::error('Sale failed: ' . $e->getMessage());
         return redirect()->back()->withInput();
     }
 }
+
 
     /**
      * Display the specified Sale.
