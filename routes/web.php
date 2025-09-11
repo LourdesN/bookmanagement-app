@@ -15,6 +15,7 @@ use App\Http\Controllers\{
     SupplierController,
     UserController
 };
+use Illuminate\Support\Facades\DB;
 
 /*
 |--------------------------------------------------------------------------
@@ -74,3 +75,12 @@ Route::middleware('auth')->group(function () {
 
 // Auth scaffolding (e.g., Laravel Breeze or Jetstream)
 require __DIR__.'/auth.php';
+
+Route::get('/db-test', function () {
+    try {
+        DB::connection()->getPdo();
+        return '✅ DB connection is clean';
+    } catch (\Exception $e) {
+        return '❌ DB connection issue: ' . $e->getMessage();
+    }
+});
