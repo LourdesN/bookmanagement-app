@@ -82,7 +82,8 @@ public function store(CreateSaleRequest $request)
     }
 
     // 🔒 Ensure it’s a clean string for Postgres
-    $data['payment_status'] = trim((string) $data['payment_status'], "'");
+  $data['payment_status'] = DB::raw("'" . $data['payment_status'] . "'");
+
 
     DB::beginTransaction();
 
@@ -103,6 +104,7 @@ public function store(CreateSaleRequest $request)
 
         // ✅ Create sale
         Log::info('✅ Creating sale...', $data);
+        unset($data['payment_status']);
         $sale = Sale::create($data);
 
         // 📦 Update inventory

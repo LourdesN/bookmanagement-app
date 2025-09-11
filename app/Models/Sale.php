@@ -29,7 +29,7 @@ class Sale extends Model
         'quantity' => 'required',
         'unit_price' => 'required',
         'total' => 'required',
-        'payment_status' => 'sometimes|string|max:50',
+        'payment_status' => 'nullable|string|max:50',
         'balance_due' => 'nullable|numeric',
     ];
 
