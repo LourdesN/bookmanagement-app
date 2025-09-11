@@ -60,15 +60,14 @@ public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
 
-    // ✅ Validate request
     $data = $request->validated();
     Log::info('📥 Input received:', $data);
 
-    // Cast numeric fields to correct types
+    // ✅ Cast numeric fields to match DB types
     $data['quantity']    = (int) ($data['quantity'] ?? 0);
-    $data['unit_price']  = (float) ($data['unit_price'] ?? 0);    
-    $data['total']       = (float) ($data['total'] ?? 0);        // NUMERIC(10,2)
-    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);  // NUMERIC(10,2)
+    $data['unit_price']  = (float) ($data['unit_price'] ?? 0); // NUMERIC(10,2)
+    $data['total']       = (float) ($data['total'] ?? 0);      // NUMERIC(10,2)
+    $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);// NUMERIC(10,2)
     $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']); // NUMERIC(10,2)
 
     // Determine payment status
@@ -78,65 +77,62 @@ public function store(CreateSaleRequest $request)
         default => 'Unpaid',
     };
 
-    DB::beginTransaction();
-
     try {
-        // ✅ Foreign key checks
-        if (!Book::where('id', $data['book_id'])->exists()) {
-            throw new \Exception("Book with ID {$data['book_id']} does not exist.");
-        }
+        DB::transaction(function () use ($data) {
 
-        if (!Customer::where('id', $data['customer_id'])->exists()) {
-            throw new \Exception("Customer with ID {$data['customer_id']} does not exist.");
-        }
+            // ✅ Foreign key checks
+            if (!Book::where('id', $data['book_id'])->exists()) {
+                throw new \Exception("Book with ID {$data['book_id']} does not exist.");
+            }
+            if (!Customer::where('id', $data['customer_id'])->exists()) {
+                throw new \Exception("Customer with ID {$data['customer_id']} does not exist.");
+            }
 
-        // 🔍 Check inventory
-        $inventory = Inventory::where('book_id', $data['book_id'])->first();
-        if (!$inventory) {
-            throw new \Exception("No inventory found for this book.");
-        }
+            // 🔍 Check inventory
+            $inventory = Inventory::where('book_id', $data['book_id'])->first();
+            if (!$inventory) {
+                throw new \Exception("No inventory found for this book.");
+            }
+            if ($inventory->quantity < $data['quantity']) {
+                throw new \Exception("Insufficient inventory. Available: {$inventory->quantity}");
+            }
 
-        if ($inventory->quantity < $data['quantity']) {
-            throw new \Exception("Insufficient inventory. Available: {$inventory->quantity}");
-        }
-
-        // ✅ Create sale
-        $sale = Sale::create([
-            'book_id'        => $data['book_id'],
-            'customer_id'    => $data['customer_id'],
-            'quantity'       => $data['quantity'],
-            'unit_price'     => $data['unit_price'],
-            'total'          => $data['total'],
-            'balance_due'    => $data['balance_due'],
-            'amount_paid'    => $data['amount_paid'],
-            'payment_status' => $data['payment_status'], // plain string
-        ]);
-
-        // 📦 Update inventory
-        $inventory->decrement('quantity', $data['quantity']);
-
-        // 💰 Record payment if any
-        if ($data['amount_paid'] > 0) {
-            Payment::create([
-                'sale_id'      => $sale->id,
-                'amount'       => $data['amount_paid'],
-                'payment_date' => now(),
+            // ✅ Create sale
+            $sale = Sale::create([
+                'book_id'        => $data['book_id'],
+                'customer_id'    => $data['customer_id'],
+                'quantity'       => $data['quantity'],
+                'unit_price'     => $data['unit_price'],
+                'total'          => $data['total'],
+                'balance_due'    => $data['balance_due'],
+                'amount_paid'    => $data['amount_paid'],
+                'payment_status' => $data['payment_status'], // plain string
             ]);
-        }
 
-        // 📡 Reorder notification
-        if ($inventory->fresh()->quantity <= $inventory->book->reorder_level) {
-            $this->sendReorderNotifications($inventory);
-        }
+            // 📦 Update inventory
+            $inventory->decrement('quantity', $data['quantity']);
 
-        DB::commit();
+            // 💰 Record payment if any
+            if ($data['amount_paid'] > 0) {
+                Payment::create([
+                    'sale_id'      => $sale->id,
+                    'amount'       => $data['amount_paid'],
+                    'payment_date' => now(),
+                ]);
+            }
+
+            // 📡 Reorder notification
+            if ($inventory->fresh()->quantity <= $inventory->book->reorder_level) {
+                $this->sendReorderNotifications($inventory);
+            }
+
+        }); // DB::transaction automatically commits or rolls back
+
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
-
         return redirect()->route('sales.index');
 
     } catch (\Exception $e) {
-        DB::rollBack();
         Log::error('❌ Exception occurred: ' . $e->getMessage());
         Alert::error('An error occurred: ' . $e->getMessage());
         return redirect()->back()->withInput();
@@ -154,6 +150,7 @@ private function sendReorderNotifications(Inventory $inventory)
 
     User::all()->each(fn($user) => $user->notify(new ReorderLevelAlert($inventory)));
 }
+
 
 
 
