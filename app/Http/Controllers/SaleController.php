@@ -76,7 +76,13 @@ public function store(CreateSaleRequest $request)
         default => 'Unpaid',
     };
 
-    // ✅ Wrap entire operation in a transaction
+    // 🔒 Ensure clean Postgres session by rolling back any lingering transaction
+    try {
+        DB::statement('ROLLBACK'); // safe even if no transaction is active
+    } catch (\Exception $e) {
+        // ignore if no transaction exists
+    }
+
     DB::beginTransaction();
 
     try {
@@ -129,7 +135,6 @@ public function store(CreateSaleRequest $request)
 
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
-
         return redirect()->route('sales.index');
 
     } catch (\Exception $e) {
@@ -146,12 +151,8 @@ public function store(CreateSaleRequest $request)
 private function sendReorderNotifications(Inventory $inventory)
 {
     Log::info('📨 Sending reorder alert emails...');
-
-    // Admin email
     FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
         ->notify(new ReorderLevelAlert($inventory));
-
-    // All users
     User::all()->each(fn($user) => $user->notify(new ReorderLevelAlert($inventory)));
 }
 
