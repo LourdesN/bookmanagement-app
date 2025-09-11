@@ -58,55 +58,57 @@ class SaleController extends AppBaseController
      */
     
 
+use App\Models\Inventory;
+use App\Models\Sale;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Http\Request;
+
 public function store(Request $request)
 {
     $data = $request->all();
 
-    DB::beginTransaction();
-
     try {
-        // Fetch inventory by book_id
+        // Fetch inventory first
         $inventory = Inventory::where('book_id', $data['book_id'])->first();
 
         if (!$inventory) {
-            // Throw an exception if inventory not found
             throw new \Exception("Inventory not found for book_id: {$data['book_id']}");
         }
 
         if ($inventory->quantity < $data['quantity']) {
-            throw new \Exception("Not enough stock for book_id: {$data['book_id']}");
+            throw new \Exception("Not enough stock for book_id: {$data['book_id']}. Available: {$inventory->quantity}");
         }
 
-        // Decrement inventory
-        $inventory->decrement('quantity', $data['quantity']);
+        // Only start transaction after validations succeed
+        DB::transaction(function () use ($data, $inventory) {
+            // Decrement inventory
+            $inventory->decrement('quantity', $data['quantity']);
 
-        // Create the sale
-        Sale::create([
-            'book_id' => $data['book_id'],
-            'customer_id' => $data['customer_id'],
-            'quantity' => $data['quantity'],
-            'unit_price' => $data['unit_price'],
-            'total' => $data['total'],
-            'balance_due' => $data['balance_due'],
-            'amount_paid' => $data['amount_paid'] ?? 0,
-            'payment_status' => $data['payment_status'] ?? 'Unpaid',
-        ]);
-
-        DB::commit();
+            // Create sale
+            Sale::create([
+                'book_id' => $data['book_id'],
+                'customer_id' => $data['customer_id'],
+                'quantity' => $data['quantity'],
+                'unit_price' => $data['unit_price'],
+                'total' => $data['total'],
+                'balance_due' => $data['balance_due'],
+                'amount_paid' => $data['amount_paid'] ?? 0,
+                'payment_status' => $data['payment_status'] ?? 'Unpaid',
+            ]);
+        });
 
         return response()->json([
             'success' => true,
             'message' => 'Sale completed successfully!'
         ]);
-    } catch (\Exception $e) {
-        DB::rollBack();
 
-        // Log the error and display on the page
+    } catch (\Exception $e) {
+        // Log the real underlying error
         \Log::error('Sale failed: '.$e->getMessage(), $data);
 
         return response()->json([
             'success' => false,
-            'message' => 'Sale failed: ' . $e->getMessage()
+            'message' => 'Sale failed: '.$e->getMessage()
         ], 400);
     }
 }
