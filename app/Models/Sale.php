@@ -17,7 +17,6 @@ class Sale extends Model
         'payment_status',
         'amount_paid',
         'balance_due',
-   
     ];
 
     protected $casts = [

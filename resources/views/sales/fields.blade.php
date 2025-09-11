@@ -33,22 +33,38 @@
     {!! Form::label('amount_paid', 'Amount Paid:') !!}
     {!! Form::number('amount_paid', null, ['class' => 'form-control', 'required', 'id' => 'amount_paid']) !!}
 </div>
+
 <!-- Balance Due Field -->
 <div class="form-group col-sm-6">
     {!! Form::label('balance_due', 'Balance Due:') !!}
     {!! Form::number('balance_due', null, ['class' => 'form-control', 'readonly' => true, 'id' => 'balance_due']) !!}
 </div>
 
-<!-- Payment Status (Auto-updated but still submitted) -->
+<!-- Payment Status (Display Only, NOT submitted) -->
 <div class="form-group col-sm-6">
     {!! Form::label('payment_status', 'Payment Status:') !!}
-    {!! Form::text('payment_status', null, ['class' => 'form-control', 'readonly', 'id' => 'payment_status']) !!}
+    <input type="text" class="form-control" id="payment_status_display" value="Unpaid" readonly>
 </div>
 
 <script>
+    function calculateTotal() {
+        let quantity = parseFloat(document.getElementById('quantity').value) || 0;
+        let unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
+        document.getElementById('total').value = (quantity * unitPrice).toFixed(2);
+        calculateBalanceDue();
+        updatePaymentStatus();
+    }
+
+    function calculateBalanceDue() {
+        let total = parseFloat(document.getElementById('total').value) || 0;
+        let amountPaid = parseFloat(document.getElementById('amount_paid').value) || 0;
+        let balanceDue = total - amountPaid;
+        document.getElementById('balance_due').value = balanceDue.toFixed(2);
+    }
+
     function updatePaymentStatus() {
-        const total = parseFloat(document.getElementById('total').value) || 0;
-        const paid = parseFloat(document.getElementById('amount_paid').value) || 0;
+        let total = parseFloat(document.getElementById('total').value) || 0;
+        let paid = parseFloat(document.getElementById('amount_paid').value) || 0;
         let status = 'Unpaid';
 
         if (paid >= total) {
@@ -57,49 +73,19 @@
             status = 'Partially Paid';
         }
 
-        document.getElementById('payment_status').value = status;
-    }
-
-    document.getElementById('quantity').addEventListener('input', () => {
-        calculateTotal();
-        updatePaymentStatus();
-    });
-
-    document.getElementById('unit_price').addEventListener('input', () => {
-        calculateTotal();
-        updatePaymentStatus();
-    });
-
-    document.getElementById('amount_paid').addEventListener('input', updatePaymentStatus);
-</script>
-
-
-<script>
-    function calculateTotal() {
-        let quantity = parseFloat(document.getElementById('quantity').value) || 0;
-        let unitPrice = parseFloat(document.getElementById('unit_price').value) || 0;
-        document.getElementById('total').value = (quantity * unitPrice).toFixed(2);
-    }
-
-    document.getElementById('quantity').addEventListener('input', calculateTotal);
-    document.getElementById('unit_price').addEventListener('input', calculateTotal);
-</script>
-
-
-<script>
-    function calculateBalanceDue() {
-        let total = parseFloat(document.getElementById('total')?.value || 0);
-        let amountPaid = parseFloat(document.getElementById('amount_paid')?.value || 0);
-        let balanceDue = total - amountPaid;
-        document.getElementById('balance_due').value = balanceDue.toFixed(2);
+        document.getElementById('payment_status_display').value = status;
     }
 
     document.addEventListener('DOMContentLoaded', function () {
-        document.getElementById('total')?.addEventListener('input', calculateBalanceDue);
-        document.getElementById('amount_paid')?.addEventListener('input', calculateBalanceDue);
+        document.getElementById('quantity').addEventListener('input', calculateTotal);
+        document.getElementById('unit_price').addEventListener('input', calculateTotal);
+        document.getElementById('amount_paid').addEventListener('input', () => {
+            calculateBalanceDue();
+            updatePaymentStatus();
+        });
 
         // Calculate on load
-        calculateBalanceDue();
+        calculateTotal();
+        updatePaymentStatus();
     });
 </script>
-
