@@ -59,29 +59,28 @@ public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
 
-    // ✅ Use validated data
     $data = $request->validated();
     Log::info('📥 Input received:', $data);
 
-    // ✅ Cast numeric fields to correct types
+    // Cast numeric fields
     $data['quantity']    = (int) ($data['quantity'] ?? 0);
     $data['unit_price']  = (float) ($data['unit_price'] ?? 0);
     $data['total']       = (float) ($data['total'] ?? 0);
     $data['amount_paid'] = (float) ($data['amount_paid'] ?? 0);
-
-    // ✅ Calculate balance & payment status
     $data['balance_due'] = max(0, $data['total'] - $data['amount_paid']);
 
+    // Determine payment status
     $data['payment_status'] = match (true) {
         $data['amount_paid'] >= $data['total'] => 'Paid',
         $data['amount_paid'] > 0 => 'Partially Paid',
         default => 'Unpaid',
     };
 
+    // ✅ Wrap entire operation in a transaction
     DB::beginTransaction();
 
     try {
-        // 🔍 Check inventory
+        // Check inventory
         $inventory = Inventory::where('book_id', $data['book_id'])->first();
         if (!$inventory) {
             Log::warning("❌ Inventory not found for book_id: {$data['book_id']}");
@@ -95,14 +94,24 @@ public function store(CreateSaleRequest $request)
             return redirect()->back()->withInput();
         }
 
-        // ✅ Create sale
-        Log::info('✅ Creating sale...', $data);
-        $sale = Sale::create($data);
+        // Create sale
+        $sale = Sale::create([
+            'book_id'        => $data['book_id'],
+            'customer_id'    => $data['customer_id'],
+            'quantity'       => $data['quantity'],
+            'unit_price'     => $data['unit_price'],
+            'total'          => $data['total'],
+            'balance_due'    => $data['balance_due'],
+            'amount_paid'    => $data['amount_paid'],
+            'payment_status' => $data['payment_status'],
+        ]);
 
-        // 📦 Update inventory
+        Log::info('✅ Sale created successfully', ['sale_id' => $sale->id]);
+
+        // Update inventory
         $inventory->decrement('quantity', $data['quantity']);
 
-        // 💰 Save payment if any
+        // Record payment if any
         if ($data['amount_paid'] > 0) {
             Payment::create([
                 'sale_id'      => $sale->id,
@@ -111,22 +120,13 @@ public function store(CreateSaleRequest $request)
             ]);
         }
 
-        // 📡 Reorder level check & notifications
-        $book = $inventory->book;
-        if ($inventory->fresh()->quantity <= $book->reorder_level) {
-            Log::info('📨 Sending reorder alert emails...');
-            
-            // Notify admin email
-            FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
-                ->notify(new ReorderLevelAlert($inventory));
-
-            // Notify all users
-            User::all()->each(function ($user) use ($inventory) {
-                $user->notify(new ReorderLevelAlert($inventory));
-            });
+        // Reorder notification
+        if ($inventory->fresh()->quantity <= $inventory->book->reorder_level) {
+            $this->sendReorderNotifications($inventory);
         }
 
         DB::commit();
+
         Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
 
@@ -139,6 +139,22 @@ public function store(CreateSaleRequest $request)
         return redirect()->back()->withInput();
     }
 }
+
+/**
+ * Sends reorder notifications to admin and users.
+ */
+private function sendReorderNotifications(Inventory $inventory)
+{
+    Log::info('📨 Sending reorder alert emails...');
+
+    // Admin email
+    FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+        ->notify(new ReorderLevelAlert($inventory));
+
+    // All users
+    User::all()->each(fn($user) => $user->notify(new ReorderLevelAlert($inventory)));
+}
+
 
 
     /**
