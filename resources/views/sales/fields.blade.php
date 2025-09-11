@@ -40,11 +40,14 @@
     {!! Form::number('balance_due', null, ['class' => 'form-control', 'readonly' => true, 'id' => 'balance_due']) !!}
 </div>
 
-<!-- Payment Status (Display Only, NOT submitted) -->
+
+<!-- Payment Status (Display Only but still submitted) -->
 <div class="form-group col-sm-6">
     {!! Form::label('payment_status', 'Payment Status:') !!}
     <input type="text" class="form-control" id="payment_status_display" value="Unpaid" readonly>
+    <input type="hidden" name="payment_status" id="payment_status" value="Unpaid">
 </div>
+
 
 <script>
     function calculateTotal() {
@@ -73,8 +76,11 @@
             status = 'Partially Paid';
         }
 
+        // Update both fields
         document.getElementById('payment_status_display').value = status;
+        document.getElementById('payment_status').value = status;
     }
+
 
     document.addEventListener('DOMContentLoaded', function () {
         document.getElementById('quantity').addEventListener('input', calculateTotal);
