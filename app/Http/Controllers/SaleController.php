@@ -57,73 +57,73 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-    
-  public function store(Request $request)
-    {
-        Log::info('🟢 SaleController@store triggered', ['request_data' => $request->all()]);
 
-        try {
-            DB::beginTransaction();
+public function store(Request $request)
+{
+    try {
+        DB::beginTransaction();
 
-            // 1. Find inventory by book_id
-            $inventory = Inventory::where('book_id', $request->book_id)->first();
+        Log::info('🟢 SaleController@store triggered', [
+            'request_data' => $request->all(),
+        ]);
 
-            if (!$inventory) {
-                throw new \Exception("Inventory not found for book_id: {$request->book_id}");
-            }
+        // Find inventory
+        $inventory = Inventory::findOrFail($request->book_id);
 
-            Log::info('📦 Inventory found', [
-                'inventory_id' => $inventory->id,
-                'inventory_quantity' => $inventory->quantity
-            ]);
+        Log::info('📦 Inventory found', [
+            'inventory_id' => $inventory->id,
+            'inventory_quantity' => $inventory->quantity,
+        ]);
 
-            // 2. Check stock
-            if ($inventory->quantity < $request->quantity) {
-                throw new \Exception("Not enough stock. Available: {$inventory->quantity}, Requested: {$request->quantity}");
-            }
-
-            // 3. Create sale
-            $sale = Sale::create([
-                'book_id'       => $request->book_id,
-                'customer_id'   => $request->customer_id,
-                'quantity'      => $request->quantity,
-                'unit_price'    => $request->unit_price,
-                'total'         => $request->total,
-                'balance_due'   => $request->balance_due,
-                'amount_paid'   => $request->amount_paid ?? 0,
-                'payment_status'=> $request->payment_status ?? 'Unpaid', // ✅ force string
-            ]);
-
-            Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-            // 4. Update inventory
-            $inventory->decrement('quantity', $request->quantity);
-
-            Log::info('📉 Inventory updated', [
-                'inventory_id' => $inventory->id,
-                'new_quantity' => $inventory->quantity
-            ]);
-
-            DB::commit();
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Sale recorded successfully!',
-                'sale'    => $sale
-            ]);
-        } catch (\Exception $e) {
-            DB::rollBack();
-
-            Log::error('❌ Sale failed: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString()
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Sale failed: ' . $e->getMessage()
-            ], 500);
+        // Ensure enough stock
+        if ($inventory->quantity < $request->quantity) {
+            throw new \Exception("Not enough stock available.");
         }
+
+        // Deduct stock
+        $inventory->decrement('quantity', $request->quantity);
+
+        // Create sale record
+        $sale = Sale::create([
+            'book_id'        => $request->book_id,
+            'customer_id'    => $request->customer_id,
+            'quantity'       => $request->quantity,
+            'unit_price'     => $request->unit_price,
+            'total'          => $request->total,
+            'balance_due'    => $request->balance_due,
+            'amount_paid'    => $request->amount_paid,
+            'payment_status' => 'Unpaid', // ✅ string, not raw
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        DB::commit();
+
+        Log::info('✅ Sale success', [
+            'sale_id' => $sale->id,
+            'inventory_remaining' => $inventory->quantity,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sale recorded successfully',
+            'sale_id' => $sale->id,
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('❌ Sale failed', [
+            'error' => $e->getMessage(),
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Sale failed: ' . $e->getMessage(),
+        ]);
     }
+}
+
     /**
      * Display the specified Sale.
      */
