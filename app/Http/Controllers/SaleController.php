@@ -67,21 +67,22 @@ public function store(Request $request)
             'request_data' => $request->all(),
         ]);
 
-        // Find inventory
-        $inventory = Inventory::findOrFail($request->book_id);
+     // Find inventory by book_id
+$inventory = Inventory::where('book_id', $request->book_id)->firstOrFail();
 
-        Log::info('📦 Inventory found', [
-            'inventory_id' => $inventory->id,
-            'inventory_quantity' => $inventory->quantity,
-        ]);
+Log::info('📦 Inventory found', [
+    'inventory_id' => $inventory->id,
+    'inventory_quantity' => $inventory->quantity,
+]);
 
-        // Ensure enough stock
-        if ($inventory->quantity < $request->quantity) {
-            throw new \Exception("Not enough stock available.");
-        }
+// Ensure enough stock
+if ($inventory->quantity < $request->quantity) {
+    throw new \Exception("Not enough stock available.");
+}
 
-        // Deduct stock
-        $inventory->decrement('quantity', $request->quantity);
+// Deduct stock
+$inventory->decrement('quantity', $request->quantity);
+
 
         // Create sale record
         $sale = Sale::create([
