@@ -63,12 +63,20 @@ class SaleController extends AppBaseController
 
 public function store(Request $request)
 {
+    // Log every query that runs during this request
+    DB::listen(function ($query) {
+        Log::info('📜 SQL Executed', [
+            'sql' => $query->sql,
+            'bindings' => $query->bindings,
+            'time' => $query->time
+        ]);
+    });
+
     Log::info('➡️ Starting sale transaction', $request->all());
 
     DB::beginTransaction();
 
     try {
-        // 1️⃣ Create the Sale
         $sale = new Sale();
         $sale->book_id = $request->book_id;
         $sale->customer_id = $request->customer_id;
@@ -77,7 +85,7 @@ public function store(Request $request)
         $sale->total = $request->total;
         $sale->amount_paid = $request->amount_paid ?? 0;
 
-        // ✅ Always set payment_status before save
+        // set payment_status
         if ($sale->amount_paid >= $sale->total) {
             $sale->payment_status = 'Paid';
         } elseif ($sale->amount_paid > 0) {
