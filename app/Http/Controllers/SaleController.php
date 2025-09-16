@@ -80,16 +80,23 @@ public function store(Request $request)
     ]);
     \Log::info('✅ Sale created', ['sale_id' => $sale->id]);
 
-    // 2. Update Inventory
-    $inventory = Inventory::where('book_id', $request->book_id)->first();
-    if (!$inventory) {
-        throw new \Exception("No inventory found for this book_id {$request->book_id}");
-    }
-    if ($inventory->quantity < $request->quantity) {
-        throw new \Exception("Not enough stock for this book");
-    }
-    $inventory->decrement('quantity', $request->quantity);
-    \Log::info('✅ Inventory updated', ['book_id' => $request->book_id]);
+   // 2. Update Inventory
+$inventory = Inventory::where('book_id', $request->book_id)->first();
+
+if (!$inventory) {
+    throw new \Exception("No inventory record exists for book_id {$request->book_id}");
+}
+
+if ($inventory->quantity < $request->quantity) {
+    throw new \Exception("Not enough stock for book_id {$request->book_id}");
+}
+
+$inventory->decrement('quantity', $request->quantity);
+\Log::info('✅ Inventory updated', [
+    'book_id' => $request->book_id,
+    'new_quantity' => $inventory->quantity - $request->quantity,
+]);
+
 
     // 3. Add Payment
     if ($request->amount_paid > 0) {
