@@ -108,7 +108,6 @@ public function store(CreateSaleRequest $request)
             'total'          => $total,
             'amount_paid'    => $amountPaid,
             'balance_due'    => $input['balance_due'],
-            'payment_status' => (string) $input['payment_status'], // ✅ force string
         ]);
 
         Log::info('📦 Decrementing inventory...');

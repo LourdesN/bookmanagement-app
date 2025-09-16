@@ -44,7 +44,7 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    const booksData = {!! json_encode($booksData) !!}; // pass book_id => unit_price mapping from controller
+    const booksData = JSON.parse('{!! json_encode($booksData) !!}');
 
     const bookSelect = document.getElementById("book_id");
     const unitPriceInput = document.getElementById("unit_price");
@@ -54,8 +54,8 @@ document.addEventListener("DOMContentLoaded", function() {
     const balanceDueInput = document.getElementById("balance_due");
 
     function calculateTotal() {
-        const qty = parseInt(quantityInput.value) || 0;
-        const price = parseInt(unitPriceInput.value) || 0;
+        const qty = parseFloat(quantityInput.value) || 0;
+        const price = parseFloat(unitPriceInput.value) || 0;
         totalInput.value = (qty * price).toFixed(2);
         calculateBalanceDue();
     }
@@ -63,7 +63,7 @@ document.addEventListener("DOMContentLoaded", function() {
     function calculateBalanceDue() {
         const total = parseFloat(totalInput.value) || 0;
         const paid = parseFloat(amountPaidInput.value) || 0;
-        balanceDueInput.value = (total - paid).toFixed(2);
+        balanceDueInput.value = Math.max(total - paid, 0).toFixed(2);
     }
 
     // Update unit price when book changes
@@ -77,7 +77,7 @@ document.addEventListener("DOMContentLoaded", function() {
     quantityInput.addEventListener("input", calculateTotal);
     amountPaidInput.addEventListener("input", calculateBalanceDue);
 
-    // Initialize unit price & totals on page load
+    // Initialize on page load
     if (bookSelect.value) {
         unitPriceInput.value = booksData[bookSelect.value] ?? 0;
         calculateTotal();
