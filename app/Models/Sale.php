@@ -49,12 +49,6 @@ class Sale extends Model
     });
 }
 
-
-    public function getBalanceDueAttribute()
-{
-    return $this->total - $this->amount_paid;
-}
-
     public function book(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
         return $this->belongsTo(\App\Models\Book::class, 'book_id');
