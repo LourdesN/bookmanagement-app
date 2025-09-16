@@ -2,13 +2,13 @@
     <!-- Book -->
     <div class="form-group col-sm-6">
         {!! Form::label('book_id', 'Book:') !!}
-        {!! Form::select('book_id', $books, null, ['class' => 'form-control', 'id' => 'book_id', 'required']) !!}
+        {!! Form::select('book_id', $books, null, ['class' => 'form-control', 'placeholder' => 'Select a book', 'id' => 'book_id', 'required']) !!}
     </div>
 
     <!-- Customer -->
     <div class="form-group col-sm-6">
         {!! Form::label('customer_id', 'Customer:') !!}
-        {!! Form::select('customer_id', $customers, null, ['class' => 'form-control', 'id' => 'customer_id', 'required']) !!}
+        {!! Form::select('customer_id', $customers, null, ['class' => 'form-control', 'placeholder' => 'Select a Customer', 'id' => 'customer_id', 'required']) !!}
     </div>
 
     <!-- Quantity -->
