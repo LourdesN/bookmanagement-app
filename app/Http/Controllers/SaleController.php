@@ -62,77 +62,49 @@ class SaleController extends AppBaseController
 
 public function store(Request $request)
 {
-    $data = $request->all();
-
     DB::beginTransaction();
 
     try {
-        // Step 1: Create Sale
+        // 1. Create Sale
         $sale = Sale::create([
-            'book_id'      => $data['book_id'],
-            'customer_id'  => $data['customer_id'],
-            'quantity'     => $data['quantity'],
-            'unit_price'   => $data['unit_price'],
-            'total'        => $data['total'],
-            'amount_paid'  => $data['amount_paid'] ?? 0,
-            'balance_due'  => $data['balance_due'] ?? ($data['total'] - ($data['amount_paid'] ?? 0)),
-            'payment_status' => $data['payment_status'] ?? 'Unpaid',
+            'book_id'       => $request->book_id,
+            'customer_id'   => $request->customer_id,
+            'quantity'      => $request->quantity,
+            'unit_price'    => $request->unit_price,
+            'total'         => $request->total,
+            'amount_paid'   => $request->amount_paid,
+            'balance_due'   => $request->balance_due,
+            'payment_status'=> $request->balance_due > 0 ? 'partial' : 'paid',
         ]);
 
-        Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-        // Step 2: Update Inventory
-        $inventory = Inventory::where('book_id', $data['book_id'])->first();
-
-        if (!$inventory) {
-            throw new \Exception("Inventory not found for book_id {$data['book_id']}");
+        // 2. Update Inventory
+        $inventory = Inventory::where('book_id', $request->book_id)->firstOrFail();
+        if ($inventory->quantity < $request->quantity) {
+            throw new \Exception("Not enough stock for this book.");
         }
+        $inventory->decrement('quantity', $request->quantity);
 
-        if ($inventory->quantity < $data['quantity']) {
-            throw new \Exception("Not enough stock. Available: {$inventory->quantity}, requested: {$data['quantity']}");
-        }
-
-        $inventory->decrement('quantity', $data['quantity']);
-
-        Log::info('📦 Inventory updated', [
-            'inventory_id' => $inventory->id,
-            'new_quantity' => $inventory->quantity
-        ]);
-
-        // Step 3: Check for Reorder Level
-        if ($inventory->quantity <= $inventory->reorder_level) {
-            $users = User::whereNotNull('phone')->get();
-            FacadesNotification::send($users, new ReorderLevelAlert($inventory)); 
-            Log::warning('⚠️ Reorder level reached', [
-                'inventory_id' => $inventory->id,
-                'current_quantity' => $inventory->quantity,
-                'reorder_level' => $inventory->reorder_level
+        // 3. Add Payment (if any)
+        if ($request->amount_paid > 0) {
+            Payment::create([
+                'sale_id'      => $sale->id,
+                'amount'       => $request->amount_paid,
+                'payment_date' => now(),
             ]);
         }
-        
-        DB::commit();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Sale processed successfully',
-            'sale_id' => $sale->id
-        ]);
+        // 4. Check for Reorder Level
+        if ($inventory->quantity <= $inventory->reorder_level) {
+            $users = User::whereNotNull('phone')->get();
+            FacadesNotification::send($users, new ReorderLevelAlert($inventory));
+        }
+       
+        DB::commit();
+        return response()->json(['success' => true, 'message' => 'Sale recorded successfully!']);
 
     } catch (\Exception $e) {
         DB::rollBack();
-
-        Log::error('❌ Sale failed', [
-            'error_message' => $e->getMessage(),
-            'error_code'    => $e->getCode(),
-            'file'          => $e->getFile(),
-            'line'          => $e->getLine(),
-            'request_data'  => $data
-        ]);
-
-        return response()->json([
-            'success' => false,
-            'message' => 'Sale failed: ' . $e->getMessage()
-        ], 500);
+        return response()->json(['success' => false, 'message' => 'Sale failed: '.$e->getMessage()]);
     }
 }
 
