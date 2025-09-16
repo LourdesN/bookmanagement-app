@@ -64,48 +64,62 @@ public function store(Request $request)
 {
     DB::beginTransaction();
 
-    try {
-        // 1. Create Sale
-        $sale = Sale::create([
-            'book_id'       => $request->book_id,
-            'customer_id'   => $request->customer_id,
-            'quantity'      => $request->quantity,
-            'unit_price'    => $request->unit_price,
-            'total'         => $request->total,
-            'amount_paid'   => $request->amount_paid,
-            'balance_due'   => $request->balance_due,
-            'payment_status'=> $request->balance_due > 0 ? 'partial' : 'paid',
-        ]);
+   try {
+    \Log::info('➡️ Starting sale transaction', $request->all());
 
-        // 2. Update Inventory
-        $inventory = Inventory::where('book_id', $request->book_id)->firstOrFail();
-        if ($inventory->quantity < $request->quantity) {
-            throw new \Exception("Not enough stock for this book.");
-        }
-        $inventory->decrement('quantity', $request->quantity);
+    // 1. Create Sale
+    $sale = Sale::create([
+        'book_id'       => $request->book_id,
+        'customer_id'   => $request->customer_id,
+        'quantity'      => $request->quantity,
+        'unit_price'    => $request->unit_price,
+        'total'         => $request->total,
+        'amount_paid'   => $request->amount_paid,
+        'balance_due'   => $request->balance_due,
+        'payment_status'=> $request->balance_due > 0 ? 'partial' : 'paid',
+    ]);
+    \Log::info('✅ Sale created', ['sale_id' => $sale->id]);
 
-        // 3. Add Payment (if any)
-        if ($request->amount_paid > 0) {
-            Payment::create([
-                'sale_id'      => $sale->id,
-                'amount'       => $request->amount_paid,
-                'payment_date' => now(),
-            ]);
-        }
-
-        // 4. Check for Reorder Level
-        if ($inventory->quantity <= $inventory->reorder_level) {
-            $users = User::whereNotNull('phone')->get();
-            FacadesNotification::send($users, new ReorderLevelAlert($inventory));
-        }
-       
-        DB::commit();
-        return response()->json(['success' => true, 'message' => 'Sale recorded successfully!']);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        return response()->json(['success' => false, 'message' => 'Sale failed: '.$e->getMessage()]);
+    // 2. Update Inventory
+    $inventory = Inventory::where('book_id', $request->book_id)->first();
+    if (!$inventory) {
+        throw new \Exception("No inventory found for this book_id {$request->book_id}");
     }
+    if ($inventory->quantity < $request->quantity) {
+        throw new \Exception("Not enough stock for this book");
+    }
+    $inventory->decrement('quantity', $request->quantity);
+    \Log::info('✅ Inventory updated', ['book_id' => $request->book_id]);
+
+    // 3. Add Payment
+    if ($request->amount_paid > 0) {
+        Payment::create([
+            'sale_id'      => $sale->id,
+            'amount'       => $request->amount_paid,
+            'payment_date' => now(),
+        ]);
+        \Log::info('✅ Payment recorded');
+    }
+
+    // 4. Check Reorder Level
+    if ($inventory->quantity <= $inventory->reorder_level) {
+        $users = User::whereNotNull('phone')->get();
+        FacadesNotification::send($users, new ReorderLevelAlert($inventory));
+        \Log::info('⚠️ Reorder level reached, notifications sent', ['book_id' => $request->book_id]);
+    }
+
+    DB::commit();
+    return response()->json(['success' => true, 'message' => 'Sale recorded successfully!']);
+
+} catch (\Exception $e) {
+    DB::rollBack();
+    \Log::error('❌ Sale failed', [
+        'error_message' => $e->getMessage(),
+        'request_data' => $request->all(),
+    ]);
+    return response()->json(['success' => false, 'message' => 'Sale failed: '.$e->getMessage()]);
+}
+
 }
 
     /**
