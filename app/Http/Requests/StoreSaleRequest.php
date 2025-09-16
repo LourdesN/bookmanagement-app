@@ -20,7 +20,7 @@ class StoreSaleRequest extends FormRequest
             'unit_price'   => 'required|numeric|min:0',
             'total'        => 'required|numeric|min:0',
             'amount_paid'  => 'nullable|numeric|min:0',
-            'balance_due'  => 'required|numeric|min:0',
+            'balance_due'  => 'nullable|numeric|min:0',
         ];
     }
 
