@@ -68,56 +68,65 @@ public function store(CreateSaleRequest $request)
     $input = $request->all();
     Log::info('📥 Input received:', $input);
 
-    // ✅ Calculate amounts
+    // ✅ Calculate totals
     $total = (float) $input['total'];
-    $amountPaid = (float) ($input['amount_paid'] ?? 0);
+    $amountPaid = isset($input['amount_paid']) ? (float) $input['amount_paid'] : 0;
 
-    $input['payment_status'] = $amountPaid >= $total
-        ? 'Paid'
-        : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-    $input['balance_due'] = max(0, $total - $amountPaid);
+    // ✅ Always cast payment_status to string
+    $input['payment_status'] = (string) (
+        $amountPaid >= $total
+            ? 'Paid'
+            : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid')
+    );
+    $input['balance_due'] = $total - $amountPaid;
 
     DB::beginTransaction();
-
     try {
-        Log::info("🔍 Checking inventory for book_id={$input['book_id']}");
+        Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
 
         $inventory = Inventory::where('book_id', $input['book_id'])->first();
 
         if (!$inventory) {
-            Log::warning("❌ No inventory found for book_id={$input['book_id']}");
+            Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
             Alert::error('No inventory found for this book.');
             return redirect()->back();
         }
 
         if ($inventory->quantity < $input['quantity']) {
-            Log::warning("❌ Not enough stock. Available={$inventory->quantity}, Requested={$input['quantity']}");
+            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
             Alert::error('Insufficient inventory quantity for this sale.');
             return redirect()->back();
         }
 
         Log::info('✅ Creating sale...', $input);
 
-        $sale = $this->saleRepository->create($input);
+        $sale = $this->saleRepository->create([
+            'book_id'        => $input['book_id'],
+            'customer_id'    => $input['customer_id'],
+            'quantity'       => $input['quantity'],
+            'unit_price'     => $input['unit_price'],
+            'total'          => $total,
+            'amount_paid'    => $amountPaid,
+            'balance_due'    => $input['balance_due'],
+            'payment_status' => (string) $input['payment_status'], // ✅ force string
+        ]);
 
-        Log::info("📦 Decrementing inventory by {$input['quantity']}");
+        Log::info('📦 Decrementing inventory...');
         $inventory->decrement('quantity', $input['quantity']);
 
         if ($amountPaid > 0) {
-            Log::info("💰 Logging payment of {$amountPaid} for sale_id={$sale->id}");
+            Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
-                'sale_id'      => $sale->id,
-                'amount'       => $amountPaid,
+                'sale_id' => $sale->id,
+                'amount' => $amountPaid,
                 'payment_date' => now(),
             ]);
         }
 
         Log::info("📡 Checking reorder level...");
         $book = $inventory->book;
-
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
-            Log::info("📨 Sending reorder level alerts...");
+            Log::info('📨 Sending reorder alert emails...');
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
 
@@ -127,19 +136,17 @@ public function store(CreateSaleRequest $request)
         }
 
         DB::commit();
-
-        Log::info("✅ Sale #{$sale->id} completed successfully");
+        Log::info('✅ Sale completed successfully');
         Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
-
         return redirect(route('sales.index'));
-
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error("❌ Exception occurred: " . $e->getMessage());
+        Log::error('❌ Exception occurred: ' . $e->getMessage());
         Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
         return redirect()->back();
     }
 }
+
 
     /**
      * Display the specified Sale.
