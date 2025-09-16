@@ -71,13 +71,6 @@ public function store(CreateSaleRequest $request)
     // ✅ Calculate totals
     $total = (float) $input['total'];
     $amountPaid = isset($input['amount_paid']) ? (float) $input['amount_paid'] : 0;
-
-    // ✅ Always cast payment_status to string
-    $input['payment_status'] = (string) (
-        $amountPaid >= $total
-            ? 'Paid'
-            : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid')
-    );
     $input['balance_due'] = $total - $amountPaid;
 
     DB::beginTransaction();
