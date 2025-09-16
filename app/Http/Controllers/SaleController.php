@@ -61,87 +61,11 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
 
-public function store(Request $request)
-    {
-        DB::beginTransaction();
-
-        try {
-            Log::info('➡️ Starting sale transaction', $request->all());
-
-            // 1️⃣ Prepare sale data
-            $saleData = [
-                'book_id'       => $request->book_id,
-                'customer_id'   => $request->customer_id,
-                'quantity'      => $request->quantity,
-                'unit_price'    => $request->unit_price,
-                'total'         => $request->total,
-                'amount_paid'   => $request->amount_paid,
-                'balance_due'   => $request->total - $request->amount_paid,
-                'payment_status'=> $request->amount_paid >= $request->total
-                    ? 'Paid'
-                    : ($request->amount_paid > 0 ? 'Partial' : 'Unpaid'),
-            ];
-
-            Log::info('📝 Preparing sale insert', $saleData);
-
-            // 2️⃣ Create Sale
-            $sale = Sale::create($saleData);
-            Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-            // 3️⃣ Check Inventory
-            $inventory = Inventory::where('book_id', $sale->book_id)->first();
-
-            if (!$inventory) {
-                Log::error("❌ No inventory record found for book_id {$sale->book_id}");
-                throw new \Exception("No inventory found for this book.");
-            }
-
-            Log::info('📦 Inventory before update', $inventory->getAttributes());
-
-            if ($inventory->quantity < $sale->quantity) {
-                Log::error("❌ Not enough stock. Available: {$inventory->quantity}, Requested: {$sale->quantity}");
-                throw new \Exception("Not enough stock in inventory.");
-            }
-
-            // 4️⃣ Update Inventory
-            $inventory->quantity -= $sale->quantity;
-            $inventory->save();
-            Log::info('✅ Inventory updated', $inventory->getAttributes());
-
-            // 5️⃣ Handle Payment (if any amount paid)
-            if ($sale->amount_paid > 0) {
-                $payment = Payment::create([
-                    'sale_id'     => $sale->id,
-                    'customer_id' => $sale->customer_id,
-                    'amount'      => $sale->amount_paid,
-                    'payment_date'=> now(),
-                ]);
-                Log::info('💰 Payment recorded', $payment->getAttributes());
-            }
-
-            DB::commit();
-            Log::info('🎉 Sale transaction committed', ['sale_id' => $sale->id]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Sale completed successfully',
-                'data'    => $sale,
-            ]);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('❌ Sale failed', [
-                'error_message' => $e->getMessage(),
-                'request_data'  => $request->all(),
-            ]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Sale failed: ' . $e->getMessage(),
-            ]);
-        }
-    }
-    
+public function store(CreateSaleRequest $request)
+ { 
+    Log::info('🟢 SaleController@store triggered');
+     $input = $request->all(); Log::info('📥 Input received:', $input); // ✅ Calculate total-related values once 
+     $total = $input['total']; $amountPaid = $input['amount_paid'] ?? 0; $input['payment_status'] = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid'); $input['balance_due'] = $total - $amountPaid; DB::beginTransaction(); try { Log::info('🔍 Checking inventory for book_id: ' . $input['book_id']); $inventory = Inventory::where('book_id', $input['book_id'])->first(); if (!$inventory) { Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']); Alert::error('No inventory found for this book.'); return redirect()->back(); } if ($inventory->quantity < $input['quantity']) { Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}"); Alert::error('Insufficient inventory quantity for this sale.'); return redirect()->back(); } Log::info('✅ Creating sale...'); $sale = $this->saleRepository->create($input); Log::info('📦 Decrementing inventory...'); $inventory->decrement('quantity', $input['quantity']); if ($amountPaid > 0) { Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}"); Payment::create([ 'sale_id' => $sale->id, 'amount' => $amountPaid, 'payment_date' => now(), ]); } Log::info("📡 Checking reorder level..."); $book = $inventory->book; if ($inventory->fresh()->quantity <= $book->reorder_level) { Log::info('📨 Sending reorder alert emails...'); FacadesNotification::route('mail', 'lourdeswairimu@gmail.com') ->notify(new ReorderLevelAlert($inventory)); foreach (User::all() as $user) { $user->notify(new ReorderLevelAlert($inventory)); } } DB::commit(); Log::info('✅ Sale completed successfully'); Alert::success('Success', 'Sale, payment, and inventory updated successfully.'); return redirect(route('sales.index')); } catch (\Exception $e) { DB::rollBack(); Log::error('❌ Exception occurred: ' . $e->getMessage()); Alert::error('An error occurred while saving the sale: ' . $e->getMessage()); return redirect()->back(); } }
     /**
      * Display the specified Sale.
      */
