@@ -62,85 +62,86 @@ class SaleController extends AppBaseController
      */
 
 public function store(Request $request)
-{
-    // Log every query that runs during this request
-    DB::listen(function ($query) {
-        Log::info('📜 SQL Executed', [
-            'sql' => $query->sql,
-            'bindings' => $query->bindings,
-            'time' => $query->time
-        ]);
-    });
+    {
+        DB::beginTransaction();
 
-    Log::info('➡️ Starting sale transaction', $request->all());
+        try {
+            Log::info('➡️ Starting sale transaction', $request->all());
 
-    DB::beginTransaction();
+            // 1️⃣ Prepare sale data
+            $saleData = [
+                'book_id'       => $request->book_id,
+                'customer_id'   => $request->customer_id,
+                'quantity'      => $request->quantity,
+                'unit_price'    => $request->unit_price,
+                'total'         => $request->total,
+                'amount_paid'   => $request->amount_paid,
+                'balance_due'   => $request->total - $request->amount_paid,
+                'payment_status'=> $request->amount_paid >= $request->total
+                    ? 'Paid'
+                    : ($request->amount_paid > 0 ? 'Partial' : 'Unpaid'),
+            ];
 
-    try {
-        $sale = new Sale();
-        $sale->book_id = $request->book_id;
-        $sale->customer_id = $request->customer_id;
-        $sale->quantity = $request->quantity;
-        $sale->unit_price = $request->unit_price;
-        $sale->total = $request->total;
-        $sale->amount_paid = $request->amount_paid ?? 0;
+            Log::info('📝 Preparing sale insert', $saleData);
 
-        // set payment_status
-        if ($sale->amount_paid >= $sale->total) {
-            $sale->payment_status = 'Paid';
-        } elseif ($sale->amount_paid > 0) {
-            $sale->payment_status = 'Partially Paid';
-        } else {
-            $sale->payment_status = 'Unpaid';
+            // 2️⃣ Create Sale
+            $sale = Sale::create($saleData);
+            Log::info('✅ Sale created', ['sale_id' => $sale->id]);
+
+            // 3️⃣ Check Inventory
+            $inventory = Inventory::where('book_id', $sale->book_id)->first();
+
+            if (!$inventory) {
+                Log::error("❌ No inventory record found for book_id {$sale->book_id}");
+                throw new \Exception("No inventory found for this book.");
+            }
+
+            Log::info('📦 Inventory before update', $inventory->getAttributes());
+
+            if ($inventory->quantity < $sale->quantity) {
+                Log::error("❌ Not enough stock. Available: {$inventory->quantity}, Requested: {$sale->quantity}");
+                throw new \Exception("Not enough stock in inventory.");
+            }
+
+            // 4️⃣ Update Inventory
+            $inventory->quantity -= $sale->quantity;
+            $inventory->save();
+            Log::info('✅ Inventory updated', $inventory->getAttributes());
+
+            // 5️⃣ Handle Payment (if any amount paid)
+            if ($sale->amount_paid > 0) {
+                $payment = Payment::create([
+                    'sale_id'     => $sale->id,
+                    'customer_id' => $sale->customer_id,
+                    'amount'      => $sale->amount_paid,
+                    'payment_date'=> now(),
+                ]);
+                Log::info('💰 Payment recorded', $payment->getAttributes());
+            }
+
+            DB::commit();
+            Log::info('🎉 Sale transaction committed', ['sale_id' => $sale->id]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Sale completed successfully',
+                'data'    => $sale,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('❌ Sale failed', [
+                'error_message' => $e->getMessage(),
+                'request_data'  => $request->all(),
+            ]);
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Sale failed: ' . $e->getMessage(),
+            ]);
         }
-
-        $sale->balance_due = max(0, $sale->total - $sale->amount_paid);
-
-        Log::info('📝 Preparing sale insert', $sale->toArray());
-
-        $sale->save();
-        Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-        // 2️⃣ Update Inventory
-        $inventory = Inventory::where('book_id', $sale->book_id)->first();
-
-        if (!$inventory) {
-            throw new \Exception("Inventory not found for book_id {$sale->book_id}");
-        }
-
-        if ($inventory->quantity < $sale->quantity) {
-            throw new \Exception("Not enough stock for book_id {$sale->book_id}");
-        }
-
-        $inventory->quantity -= $sale->quantity;
-        $inventory->save();
-        Log::info('📦 Inventory updated', [
-            'inventory_id' => $inventory->id,
-            'new_quantity' => $inventory->quantity,
-        ]);
-
-        // 3️⃣ Add Payment if necessary
-        if ($sale->amount_paid > 0) {
-            $payment = new Payment();
-            $payment->sale_id = $sale->id;
-            $payment->amount = $sale->amount_paid;
-            $payment->save();
-            Log::info('💰 Payment recorded', ['payment_id' => $payment->id]);
-        }
-
-        DB::commit();
-        return response()->json(['success' => true, 'message' => 'Sale completed successfully']);
-
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('❌ Sale failed', [
-            'error_message' => $e->getMessage(),
-            'request_data' => $request->all(),
-        ]);
-        return response()->json(['success' => false, 'message' => 'Sale failed: ' . $e->getMessage()]);
     }
-}
-
+    
     /**
      * Display the specified Sale.
      */
