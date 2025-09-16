@@ -60,67 +60,81 @@ class SaleController extends AppBaseController
      * Store a newly created Sale in storage.
      */
 
- public function store(StoreSaleRequest $request)
-    {
-        // request is already validated
-        $data = $request->validated();
-        Log::info('🟢 SaleController@store triggered', ['request_data' => $data]);
+public function store(Request $request)
+{
+    $data = $request->all();
 
-        try {
-            DB::beginTransaction();
+    DB::beginTransaction();
 
-            // find inventory by book_id
-            $inventory = Inventory::where('book_id', $data['book_id'])->lockForUpdate()->first();
+    try {
+        // Step 1: Create Sale
+        $sale = Sale::create([
+            'book_id'      => $data['book_id'],
+            'customer_id'  => $data['customer_id'],
+            'quantity'     => $data['quantity'],
+            'unit_price'   => $data['unit_price'],
+            'total'        => $data['total'],
+            'amount_paid'  => $data['amount_paid'] ?? 0,
+            'balance_due'  => $data['balance_due'] ?? ($data['total'] - ($data['amount_paid'] ?? 0)),
+            'payment_status' => $data['payment_status'] ?? 'Unpaid',
+        ]);
 
-            if (!$inventory) {
-                throw new Exception("Inventory not found for book_id: {$data['book_id']}");
-            }
+        Log::info('✅ Sale created', ['sale_id' => $sale->id]);
 
-            Log::info('📦 Inventory found', [
-                'inventory_id' => $inventory->id,
-                'inventory_quantity' => $inventory->quantity
-            ]);
+        // Step 2: Update Inventory
+        $inventory = Inventory::where('book_id', $data['book_id'])->first();
 
-            // check stock
-            if ($inventory->quantity < $data['quantity']) {
-                throw new Exception("Not enough stock. Available: {$inventory->quantity}, Requested: {$data['quantity']}");
-            }
-
-            // reduce inventory
-            $inventory->decrement('quantity', $data['quantity']);
-
-            // create sale
-            $sale = Sale::create([
-                'book_id'      => $data['book_id'],
-                'customer_id'  => $data['customer_id'],
-                'quantity'     => $data['quantity'],
-                'unit_price'   => $data['unit_price'],
-                'total'        => $data['total'],
-                'amount_paid'  => $data['amount_paid'] ?? 0,
-                'balance_due'  => $data['balance_due'],
-                'payment_status' => $data['amount_paid'] > 0 ? 'Partial' : 'Unpaid',
-            ]);
-
-            DB::commit();
-
-            Log::info('✅ Sale successful', ['sale_id' => $sale->id]);
-
-            return response()->json([
-                'success' => true,
-                'message' => 'Sale recorded successfully',
-                'sale_id' => $sale->id
-            ]);
-        } catch (Exception $e) {
-            DB::rollBack();
-            Log::error('❌ Sale failed', ['error' => $e->getMessage()]);
-
-            return response()->json([
-                'success' => false,
-                'message' => 'Sale failed: ' . $e->getMessage(),
-            ], 500);
+        if (!$inventory) {
+            throw new \Exception("Inventory not found for book_id {$data['book_id']}");
         }
+
+        if ($inventory->quantity < $data['quantity']) {
+            throw new \Exception("Not enough stock. Available: {$inventory->quantity}, requested: {$data['quantity']}");
+        }
+
+        $inventory->decrement('quantity', $data['quantity']);
+
+        Log::info('📦 Inventory updated', [
+            'inventory_id' => $inventory->id,
+            'new_quantity' => $inventory->quantity
+        ]);
+
+        // Step 3: Check for Reorder Level
+        if ($inventory->quantity <= $inventory->reorder_level) {
+            $users = User::whereNotNull('phone')->get();
+            FacadesNotification::send($users, new ReorderLevelAlert($inventory)); 
+            Log::warning('⚠️ Reorder level reached', [
+                'inventory_id' => $inventory->id,
+                'current_quantity' => $inventory->quantity,
+                'reorder_level' => $inventory->reorder_level
+            ]);
+        }
+        
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sale processed successfully',
+            'sale_id' => $sale->id
+        ]);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('❌ Sale failed', [
+            'error_message' => $e->getMessage(),
+            'error_code'    => $e->getCode(),
+            'file'          => $e->getFile(),
+            'line'          => $e->getLine(),
+            'request_data'  => $data
+        ]);
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Sale failed: ' . $e->getMessage()
+        ], 500);
     }
-    
+}
 
     /**
      * Display the specified Sale.
