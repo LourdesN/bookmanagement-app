@@ -25,14 +25,20 @@ use RealRashid\SweetAlert\Facades\Alert;
 use Illuminate\Support\Facades\Log;
 
 
+use App\Http\Controllers\InventoryController;
+
 class SaleController extends AppBaseController
 {
     /** @var SaleRepository $saleRepository*/
     private $saleRepository;
 
-    public function __construct(SaleRepository $saleRepo)
+    /** @var InventoryController $inventoryController */
+    private $inventoryController;
+
+    public function __construct(SaleRepository $saleRepo, InventoryController $inventoryController)
     {
         $this->saleRepository = $saleRepo;
+        $this->inventoryController = $inventoryController;
     }
 
     /**
@@ -61,12 +67,12 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-public function store(CreateSaleRequest $request)
+    public function store(CreateSaleRequest $request)
     {
         Log::info('🟢 SaleController@store', ['input' => $request->all()]);
 
         $input = $request->all();
-        $book = Book::find($input['book_id']);
+        $book = \App\Models\Book::find($input['book_id']);
         if (!$book) {
             Log::warning('❌ Book not found', ['book_id' => $input['book_id']]);
             Alert::error('Book does not exist.');
@@ -85,128 +91,49 @@ public function store(CreateSaleRequest $request)
         $balanceDue = number_format(max(0, (float) $total - (float) $amountPaid), 2, '.', '');
         $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
-        $maxRetries = 3;
-        $attempt = 0;
+        DB::beginTransaction();
+        try {
+            // Create sale
+            $sale = $this->saleRepository->create([
+                'book_id' => (int) $input['book_id'],
+                'customer_id' => (int) $input['customer_id'],
+                'quantity' => (int) $input['quantity'],
+                'unit_price' => number_format((float) $input['unit_price'], 2, '.', ''),
+                'total' => $total,
+                'amount_paid' => $amountPaid,
+                'balance_due' => $balanceDue,
+                'payment_status' => $paymentStatus,
+            ]);
+            Log::info('✅ Sale created', ['sale_id' => $sale->id]);
 
-        while ($attempt < $maxRetries) {
-            DB::beginTransaction();
-            try {
-                // Lock book
-                $bookLocked = DB::selectOne('SELECT * FROM books WHERE id = ? FOR UPDATE NOWAIT', [$input['book_id']]);
-                if (!$bookLocked) {
-                    throw new \Exception('Book not found during lock');
-                }
-
-                // Lock inventory
-                $inventory = DB::selectOne('SELECT * FROM inventories WHERE book_id = ? FOR UPDATE NOWAIT', [$input['book_id']]);
-                if (!$inventory) {
-                    Log::warning('❌ Inventory not found', ['book_id' => $input['book_id']]);
-                    Alert::error('No inventory for this book.');
-                    return redirect()->back()->withInput();
-                }
-                if ($inventory->quantity < (int) $input['quantity']) {
-                    Log::warning('❌ Insufficient inventory', ['available' => $inventory->quantity, 'requested' => $input['quantity']]);
-                    Alert::error('Insufficient inventory.');
-                    return redirect()->back()->withInput();
-                }
-
-                $newQuantity = $inventory->quantity - (int) $input['quantity'];
-                $affected = DB::update(
-                    'UPDATE inventories SET quantity = ?, updated_at = ? WHERE id = ?',
-                    [$newQuantity, now(), $inventory->id]
-                );
-                if ($affected === 0) {
-                    throw new \Exception('Inventory update failed');
-                }
-                Log::info('✅ Inventory updated', ['id' => $inventory->id, 'new_quantity' => $newQuantity]);
-
-                $sale = $this->saleRepository->create([
-                    'book_id' => (int) $input['book_id'],
-                    'customer_id' => (int) $input['customer_id'],
-                    'quantity' => (int) $input['quantity'],
-                    'unit_price' => number_format((float) $input['unit_price'], 2, '.', ''),
-                    'total' => $total,
-                    'amount_paid' => $amountPaid,
-                    'balance_due' => $balanceDue,
-                    'payment_status' => $paymentStatus,
-                ]);
-                Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-                if ($amountPaid > 0) {
-                    Payment::create(['sale_id' => $sale->id, 'amount' => $amountPaid, 'payment_date' => now()]);
-                }
-
-                if ($newQuantity <= $book->reorder_level) {
-                    Log::info('📨 Sending reorder alert');
-                    FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')->notify(new ReorderLevelAlert($inventory));
-                    User::all()->each->notify(new ReorderLevelAlert($inventory));
-                }
-
-                DB::commit();
-                Alert::success('Success', 'Sale and inventory updated.');
-                return redirect(route('sales.index'));
-            } catch (\Exception $e) {
-                DB::rollBack();
-                if (str_contains($e->getMessage(), 'SQLSTATE[55P03]') || str_contains($e->getMessage(), 'SQLSTATE[25P02]')) {
-                    // Lock timeout or transaction abort, retry
-                    $attempt++;
-                    if ($attempt < $maxRetries) {
-                        Log::warning('⚠️ Retry attempt ' . ($attempt + 1) . ' due to lock or transaction error', ['error' => $e->getMessage()]);
-                        sleep(1); // Brief delay
-                        continue;
-                    }
-                }
-                Log::error('❌ Error: ' . $e->getMessage(), ['sql' => DB::getQueryLog()]);
-                Alert::error('Error: ' . $e->getMessage());
-                return redirect()->back()->withInput();
-            } finally {
-                DB::disableQueryLog();
+            if ($amountPaid > 0) {
+                Payment::create(['sale_id' => $sale->id, 'amount' => $amountPaid, 'payment_date' => now()]);
             }
-        }
 
-        Log::error('❌ Max retries reached');
-        Alert::error('Error: Unable to process sale due to persistent lock or transaction issues.');
-        return redirect()->back()->withInput();
+            // Decrement inventory
+            Log::info('📦 Calling decrementInventory', ['book_id' => $input['book_id'], 'quantity' => $input['quantity']]);
+            $this->inventoryController->decrementInventory($input['book_id'], $input['quantity']);
+            Log::info('✅ Inventory decremented');
+
+            DB::commit();
+            Alert::success('Success', 'Sale and inventory updated.');
+            return redirect(route('sales.index'));
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('❌ Error: ' . $e->getMessage(), ['sql' => DB::getQueryLog()]);
+            Alert::error('Error: ' . $e->getMessage());
+            return redirect()->back()->withInput();
+        } finally {
+            DB::disableQueryLog();
+        }
     }
 
-
-public function testInventoryUpdateProd()
-{
-    Log::info('🟢 Testing inventory update in production (PostgreSQL)');
-    DB::enableQueryLog();
-    DB::beginTransaction();
-    try {
-        Log::info('🔄 Testing transaction state with SELECT 1');
-        DB::select('SELECT 1');
-        Log::info('✅ Transaction state test passed');
-        $affected = DB::update(
-            'UPDATE inventories SET quantity = quantity - 1, updated_at = ? WHERE id = 2 AND quantity >= 1',
-            [now()]
-        );
-        if ($affected === 0) {
-            Log::error('❌ Inventory update failed: No rows affected');
-            throw new \Exception('Failed to update inventory');
-        }
-        Log::info('✅ Inventory updated successfully');
-        DB::commit();
-        return response()->json(['message' => 'Inventory updated']);
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('❌ Failed to update inventory: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'sql' => DB::getQueryLog(),
-        ]);
-        return response()->json(['error' => $e->getMessage()], 500);
-    } finally {
-        DB::disableQueryLog();
-    }
-}
 
     /**
      * Display the specified Sale.
      */
    public function show($id)
-{
+   {
     $saleId = (int) $id; // cast directly
     $sale = $this->saleRepository->find($saleId);
 
@@ -220,13 +147,13 @@ public function testInventoryUpdateProd()
                          ->pluck('name', 'id');
 
     return view('sales.show', compact('sale', 'books', 'customers'));
-}
+   }
 
     /**
      * Show the form for editing the specified Sale.
      */
     public function edit($id)
-    {
+     {
         $sale = $this->saleRepository->find($id);
 
         if (empty($sale)) {
@@ -246,7 +173,7 @@ public function testInventoryUpdateProd()
      * Update the specified Sale in storage.
      */
     public function update($id, UpdateSaleRequest $request)
-    {
+     {
         $sale = $this->saleRepository->find($id);
 
         if (empty($sale)) {
@@ -284,13 +211,13 @@ public function testInventoryUpdateProd()
         return redirect(route('sales.index'));
     }
    public function debtors()
-{
+   {
     $debtors = Sale::with('customer', 'book')
         ->where('payment_status', '!=', 'Paid')
         ->get();
 
     return view('sales.debtors', compact('debtors'));
-}
+   }
 
 
 }

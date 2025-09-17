@@ -129,4 +129,66 @@ class InventoryController extends AppBaseController
             throw $e;
         }
     }
+    public function decrementInventory($book_id, $quantity)
+    {
+        Log::info('🟢 InventoryController@decrementInventory', ['book_id' => $book_id, 'quantity' => $quantity]);
+
+        DB::beginTransaction();
+        try {
+            // Diagnostic query
+            Log::info('🔍 Checking transaction state');
+            DB::select('SELECT 1');
+            Log::info('✅ Transaction state OK');
+
+            // Lock book
+            Log::info('🔒 Locking book', ['book_id' => $book_id]);
+            $book = Book::where('id', $book_id)->lockForUpdate()->first();
+            if (!$book) {
+                Log::warning('❌ Book not found', ['book_id' => $book_id]);
+                throw new \Exception('Book does not exist.');
+            }
+            Log::info('✅ Book locked', ['book_id' => $book_id]);
+
+            // Lock inventory
+            Log::info('🔒 Locking inventory', ['book_id' => $book_id]);
+            $inventory = Inventory::where('book_id', $book_id)->lockForUpdate()->first();
+            if (!$inventory) {
+                Log::warning('❌ Inventory not found', ['book_id' => $book_id]);
+                throw new \Exception('No inventory for this book.');
+            }
+            Log::info('✅ Inventory locked', ['id' => $inventory->id]);
+
+            if ($inventory->quantity < (int) $quantity) {
+                Log::warning('❌ Insufficient inventory', ['available' => $inventory->quantity, 'requested' => $quantity]);
+                throw new \Exception('Insufficient inventory.');
+            }
+
+            $newQuantity = $inventory->quantity - (int) $quantity;
+            Log::info('📦 Updating inventory', ['id' => $inventory->id, 'new_quantity' => $newQuantity]);
+            $affected = $inventory->update([
+                'quantity' => $newQuantity,
+                'updated_at' => now(),
+            ]);
+            if (!$affected) {
+                throw new \Exception('Inventory update failed');
+            }
+            Log::info('✅ Inventory updated', ['id' => $inventory->id, 'new_quantity' => $newQuantity]);
+
+            if ($newQuantity <= $book->reorder_level) {
+                Log::info('📨 Sending reorder alert');
+                FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+                    ->notify(new ReorderLevelAlert($inventory));
+            }
+
+            DB::commit();
+            Log::info('✅ Inventory decrement successful');
+            return true;
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('❌ Error decrementing inventory: ' . $e->getMessage(), ['sql' => DB::getQueryLog()]);
+            throw $e;
+        } finally {
+            DB::disableQueryLog();
+        }
+    }
 }
