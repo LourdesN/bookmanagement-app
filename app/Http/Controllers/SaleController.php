@@ -67,13 +67,20 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
- public function store(Request $request)
+public function store(Request $request)
 {
-        $input = $request->all();
-        $sale = $this->saleRepository->create($input);
-        Alert::success('Success', 'Sale saved successfully.');
-        return redirect(route('sales.index'));
+    $input = $request->all();
+
+    // Ensure balance_due and payment_status are computed
+    $input['balance_due'] = $input['total'] - $input['amount_paid'];
+    $input['payment_status'] = $input['balance_due'] > 0 ? 'Unpaid' : 'Paid';
+
+    $sale = $this->saleRepository->create($input);
+
+    Alert::success('Success', 'Sale saved successfully.');
+    return redirect(route('sales.index'));
 }
+
 
     /**
      * Display the specified Sale.
