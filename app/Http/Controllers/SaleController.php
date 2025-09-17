@@ -63,7 +63,7 @@ class SaleController extends AppBaseController
      */
 public function store(CreateSaleRequest $request)
 {
-    Log::info('🟢 SaleController@storeMinimal triggered');
+    Log::info('🟢 SaleController@store triggered');
 
     $input = $request->all();
     Log::info('📥 Input received:', $input);
@@ -94,6 +94,45 @@ public function store(CreateSaleRequest $request)
 
     DB::beginTransaction();
     try {
+        Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
+
+        // Check inventory without lock to avoid conflicts
+        $inventory = Inventory::where('book_id', $input['book_id'])->first();
+        if (!$inventory) {
+            Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
+            Alert::error('No inventory found for this book.');
+            return redirect()->back()->withInput();
+        }
+
+        if ($inventory->quantity < (int) $input['quantity']) {
+            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
+            Alert::error('Insufficient inventory quantity for this sale.');
+            return redirect()->back()->withInput();
+        }
+
+        // Decrement inventory
+        $newQuantity = $inventory->quantity - (int) $input['quantity'];
+        Log::info('📦 Decrementing inventory...', [
+            'book_id' => $input['book_id'],
+            'current_quantity' => $inventory->quantity,
+            'new_quantity' => $newQuantity,
+        ]);
+        try {
+            $inventory->quantity = $newQuantity;
+            $inventory->save();
+            Log::info('✅ Inventory decremented successfully', [
+                'book_id' => $input['book_id'],
+                'new_quantity' => $inventory->quantity,
+            ]);
+        } catch (\Exception $e) {
+            Log::error('❌ Failed to decrement inventory: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'book_id' => $input['book_id'],
+                'quantity' => $newQuantity,
+            ]);
+            throw $e;
+        }
+
         Log::info('✅ Attempting to create sale with data:', [
             'book_id' => $input['book_id'],
             'customer_id' => $input['customer_id'],
@@ -105,21 +144,68 @@ public function store(CreateSaleRequest $request)
             'payment_status' => $paymentStatus,
         ]);
 
-        $sale = $this->saleRepository->create([
-            'book_id'        => (int) $input['book_id'],
-            'customer_id'    => (int) $input['customer_id'],
-            'quantity'       => (int) $input['quantity'],
-            'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''),
-            'total'          => $total,
-            'amount_paid'    => $amountPaid,
-            'balance_due'    => $balanceDue,
-            'payment_status' => $paymentStatus,
-        ]);
-        Log::info('✅ Sale created with ID: ' . $sale->id);
+        // Create sale
+        try {
+            $sale = $this->saleRepository->create([
+                'book_id'        => (int) $input['book_id'],
+                'customer_id'    => (int) $input['customer_id'],
+                'quantity'       => (int) $input['quantity'],
+                'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''),
+                'total'          => $total,
+                'amount_paid'    => $amountPaid,
+                'balance_due'    => $balanceDue,
+                'payment_status' => $paymentStatus,
+            ]);
+            Log::info('✅ Sale created with ID: ' . $sale->id);
+        } catch (\Exception $e) {
+            Log::error('❌ Failed to create sale: ' . $e->getMessage(), [
+                'trace' => $e->getTraceAsString(),
+                'input' => $input,
+                'sql' => DB::getQueryLog(),
+            ]);
+            throw $e;
+        }
+
+        if ($amountPaid > 0) {
+            Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
+            try {
+                Payment::create([
+                    'sale_id' => $sale->id,
+                    'amount' => $amountPaid,
+                    'payment_date' => now(),
+                ]);
+            } catch (\Exception $e) {
+                Log::error('❌ Failed to create payment: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'sale_id' => $sale->id,
+                    'amount' => $amountPaid,
+                ]);
+                throw $e;
+            }
+        }
+
+        Log::info("📡 Checking reorder level...");
+        $book = $inventory->book;
+        if ($inventory->fresh()->quantity <= $book->reorder_level) {
+            Log::info('📨 Sending reorder alert emails...');
+            try {
+                FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+                    ->notify(new ReorderLevelAlert($inventory));
+                foreach (User::all() as $user) {
+                    $user->notify(new ReorderLevelAlert($inventory));
+                }
+            } catch (\Exception $e) {
+                Log::error('❌ Failed to send reorder notifications: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                    'book_id' => $input['book_id'],
+                ]);
+                throw $e;
+            }
+        }
 
         DB::commit();
         Log::info('✅ Sale completed successfully');
-        Alert::success('Success', 'Sale created successfully.');
+        Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
         return redirect(route('sales.index'));
     } catch (\Exception $e) {
         DB::rollBack();
