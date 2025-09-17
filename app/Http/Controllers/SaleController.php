@@ -64,14 +64,11 @@ class SaleController extends AppBaseController
 public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
-
     $input = $request->all();
     Log::info('📥 Input received:', $input);
 
-    // Enable query logging
     DB::enableQueryLog();
 
-    // Validate book and customer existence
     $book = Book::find($input['book_id']);
     if (!$book) {
         Log::warning('❌ Book not found: book_id=' . $input['book_id']);
@@ -86,74 +83,48 @@ public function store(CreateSaleRequest $request)
         return redirect()->back()->withInput();
     }
 
-    // Calculate totals
     $total = number_format((float) $input['total'], 2, '.', '');
     $amountPaid = isset($input['amount_paid']) ? number_format((float) $input['amount_paid'], 2, '.', '') : '0.00';
     $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', '');
     $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
-    // Inventory transaction
-    $inventory = null;
     DB::beginTransaction();
     try {
         Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
-        $inventory = Inventory::where('book_id', $input['book_id'])->first();
-        if (!$inventory) {
+
+        // Lock row with FOR UPDATE to prevent race conditions
+        $inventory = DB::select('SELECT * FROM inventories WHERE book_id = ? FOR UPDATE', [$input['book_id']]);
+        if (empty($inventory)) {
             Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
             Alert::error('No inventory found for this book.');
             return redirect()->back()->withInput();
         }
-
-        if ($inventory->quantity < (int) $input['quantity']) {
-            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
+        $inventory = $inventory[0];
+        $quantity = (int) $inventory->quantity;
+        if ($quantity < (int) $input['quantity']) {
+            Log::warning("❌ Not enough inventory. Available: {$quantity}, Requested: {$input['quantity']}");
             Alert::error('Insufficient inventory quantity for this sale.');
             return redirect()->back()->withInput();
         }
 
-        $newQuantity = $inventory->quantity - (int) $input['quantity'];
+        $newQuantity = $quantity - (int) $input['quantity'];
         Log::info('📦 Decrementing inventory...', [
             'book_id' => $input['book_id'],
-            'current_quantity' => $inventory->quantity,
+            'current_quantity' => $quantity,
             'new_quantity' => $newQuantity,
         ]);
 
-        // Use raw SQL to update inventory
+        // Atomic UPDATE
         $affected = DB::update(
             'UPDATE inventories SET quantity = ?, updated_at = ? WHERE id = ? AND quantity >= ?',
             [$newQuantity, now(), $inventory->id, (int) $input['quantity']]
         );
         if ($affected === 0) {
-            Log::error('❌ Inventory update failed: No rows affected or quantity insufficient', [
-                'book_id' => $input['book_id'],
-                'id' => $inventory->id,
-                'new_quantity' => $newQuantity,
-            ]);
-            throw new \Exception('Failed to update inventory: No rows affected or quantity insufficient');
+            Log::error('❌ Inventory update failed: No rows affected');
+            throw new \Exception('Failed to update inventory');
         }
-        Log::info('✅ Inventory decremented successfully', [
-            'book_id' => $input['book_id'],
-            'new_quantity' => $newQuantity,
-        ]);
+        Log::info('✅ Inventory decremented successfully', ['book_id' => $input['book_id'], 'new_quantity' => $newQuantity]);
 
-        DB::commit();
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error('❌ Failed to decrement inventory: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'book_id' => $input['book_id'],
-            'quantity' => $newQuantity ?? null,
-            'sql' => DB::getQueryLog(),
-        ]);
-        Alert::error('An error occurred while updating inventory: ' . $e->getMessage());
-        return redirect()->back()->withInput();
-    } finally {
-        DB::disableQueryLog();
-    }
-
-    // Sale transaction
-    DB::enableQueryLog();
-    DB::beginTransaction();
-    try {
         Log::info('✅ Attempting to create sale with data:', [
             'book_id' => $input['book_id'],
             'customer_id' => $input['customer_id'],
@@ -177,14 +148,6 @@ public function store(CreateSaleRequest $request)
         ]);
         Log::info('✅ Sale created with ID: ' . $sale->id);
 
-        // Verify sale exists
-        $saleCheck = Sale::find($sale->id);
-        if (!$saleCheck) {
-            Log::error('❌ Sale not found after creation', ['sale_id' => $sale->id]);
-            throw new \Exception('Sale not found after creation');
-        }
-        Log::info('✅ Sale verified in database', ['sale_id' => $sale->id]);
-
         if ($amountPaid > 0) {
             Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
@@ -194,10 +157,9 @@ public function store(CreateSaleRequest $request)
             ]);
         }
 
-        // Reorder check
         Log::info("📡 Checking reorder level...");
         $book = $inventory->book;
-        if ($inventory->fresh()->quantity <= $book->reorder_level) {
+        if ($newQuantity <= $book->reorder_level) {
             Log::info('📨 Sending reorder alert emails...');
             FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
                 ->notify(new ReorderLevelAlert($inventory));
