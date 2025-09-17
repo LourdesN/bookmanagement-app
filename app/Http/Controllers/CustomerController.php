@@ -8,7 +8,6 @@ use App\Http\Requests\UpdateCustomerRequest;
 use App\Http\Controllers\AppBaseController;
 use App\Repositories\CustomerRepository;
 use Illuminate\Http\Request;
-use Flash;
 use RealRashid\SweetAlert\Facades\Alert;
 
 class CustomerController extends AppBaseController
@@ -60,7 +59,7 @@ class CustomerController extends AppBaseController
         $customer = $this->customerRepository->find($id);
 
         if (empty($customer)) {
-            Flash::error('Customer not found');
+            Alert::error('Customer not found');
 
             return redirect(route('customers.index'));
         }
@@ -76,7 +75,7 @@ class CustomerController extends AppBaseController
         $customer = $this->customerRepository->find($id);
 
         if (empty($customer)) {
-            Flash::error('Customer not found');
+            Alert::error('Customer not found');
 
             return redirect(route('customers.index'));
         }
@@ -92,14 +91,14 @@ class CustomerController extends AppBaseController
         $customer = $this->customerRepository->find($id);
 
         if (empty($customer)) {
-            Flash::error('Customer not found');
+            Alert::error('Customer not found');
 
             return redirect(route('customers.index'));
         }
 
         $customer = $this->customerRepository->update($request->all(), $id);
 
-        Flash::success('Customer updated successfully.');
+        Alert::success('Customer updated successfully.');
 
         return redirect(route('customers.index'));
     }
@@ -114,7 +113,7 @@ class CustomerController extends AppBaseController
         $customer = $this->customerRepository->find($id);
 
         if (empty($customer)) {
-            Flash::error('Customer not found');
+            Alert::error('Customer not found');
 
             return redirect(route('customers.index'));
         }

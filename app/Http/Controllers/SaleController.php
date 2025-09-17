@@ -69,34 +69,10 @@ class SaleController extends AppBaseController
      */
  public function store(Request $request)
 {
-    Log::info("🟢 SaleController@store triggered", ['input' => $request->all()]);
-
-    $validated = $request->validate([
-        'book_id' => 'required|exists:books,id',
-        'customer_id' => 'required|exists:customers,id',
-        'quantity' => 'required|integer|min:1',
-        'unit_price' => 'required|numeric|min:0',
-        'total' => 'required|numeric|min:0',
-        'amount_paid' => 'required|numeric|min:0',
-    ]);
-
-    $validated['balance_due'] = $validated['total'] - $validated['amount_paid'];
-    $validated['payment_status'] = $validated['balance_due'] > 0 ? 'Unpaid' : 'Paid';
-
-    try {
-        DB::beginTransaction();
-
-        // Just create the sale
-        $sale = Sale::create($validated);
-        Log::info("✅ Sale created", ['sale_id' => $sale->id]);
-
-        DB::commit();
-        return redirect()->route('sales.index')->with('success', 'Sale created successfully.');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        Log::error("❌ Error creating sale: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-        return back()->withErrors("Error: " . $e->getMessage());
-    }
+        $input = $request->all();
+        $sale = $this->saleRepository->create($input);
+        Alert::success('Success', 'Sale saved successfully.');
+        return redirect(route('sales.index'));
 }
 
     /**
