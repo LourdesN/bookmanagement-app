@@ -7,9 +7,9 @@ use Illuminate\Support\Facades\Log;
 
 class Sale extends Model
 {
-    public $table = 'sales';
+    protected $table = 'sales';
 
-    public $fillable = [
+    protected $fillable = [
         'book_id',
         'customer_id',
         'quantity',
@@ -21,43 +21,39 @@ class Sale extends Model
     ];
 
     protected $casts = [
-        'payment_status' => 'string'
+        'payment_status' => 'string',
+        'amount_paid'    => 'decimal:2',
+        'balance_due'    => 'decimal:2',
+        'total'          => 'decimal:2',
+        'unit_price'     => 'decimal:2',
     ];
 
     public static array $rules = [
-        'book_id' => 'required',
-        'customer_id' => 'required',
-        'quantity' => 'required',
-        'unit_price' => 'required',
-        'total' => 'required',
-        'payment_status' => 'nullable|string|max:50',
-        'balance_due' => 'nullable|numeric',
+        'book_id'      => 'required|integer',
+        'customer_id'  => 'required|integer',
+        'quantity'     => 'required|integer|min:1',
+        'unit_price'   => 'required|numeric|min:0',
+        'total'        => 'required|numeric|min:0',
+        'payment_status'=> 'nullable|string|max:50',
+        'balance_due'  => 'nullable|numeric',
     ];
 
-   protected static function booted()
+    protected static function booted()
     {
         static::creating(function ($sale) {
-            Log::info('🔄 Sale creating event triggered', [
-                'attributes' => $sale->getAttributes(),
-            ]);
+            Log::info('🔄 Sale creating event triggered', $sale->getAttributes());
         });
 
         static::created(function ($sale) {
-            Log::info('🔄 Sale created event triggered', [
+            Log::info('✅ Sale created event triggered', [
                 'id' => $sale->id,
                 'attributes' => $sale->getAttributes(),
             ]);
         });
 
         static::saving(function ($sale) {
-            Log::info('🔄 Sale saving event triggered', [
+            Log::info('💾 Sale saving event triggered', [
                 'attributes' => $sale->getAttributes(),
-                'total' => $sale->total,
-                'amount_paid' => $sale->amount_paid,
-            ]);
-            Log::info('✅ Sale saving event processed', [
-                'payment_status' => $sale->payment_status,
-                'balance_due' => $sale->balance_due,
             ]);
         });
 
@@ -69,25 +65,26 @@ class Sale extends Model
         });
 
         static::deleted(function ($sale) {
-            Log::info('🔄 Sale deleted event triggered', [
+            Log::info('🗑️ Sale deleted event triggered', [
                 'id' => $sale->id,
                 'attributes' => $sale->getAttributes(),
             ]);
         });
     }
 
-    public function book(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    // Relationships
+    public function book()
     {
-        return $this->belongsTo(\App\Models\Book::class, 'book_id');
+        return $this->belongsTo(Book::class, 'book_id');
     }
 
-    public function customer(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function customer()
     {
-        return $this->belongsTo(\App\Models\Customer::class, 'customer_id');
+        return $this->belongsTo(Customer::class, 'customer_id');
     }
+
     public function payments()
-{
-    return $this->hasMany(Payment::class);
-}
-
+    {
+        return $this->hasMany(Payment::class);
+    }
 }

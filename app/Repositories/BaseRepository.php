@@ -7,7 +7,6 @@ use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Support\Facades\Log;
 
 abstract class BaseRepository
 {
@@ -101,27 +100,14 @@ abstract class BaseRepository
     /**
      * Create model record
      */
-  public function create(array $attributes)
-{
-    Log::info('🔄 BaseRepository@create called', [
-        'model' => get_class($this->model),
-        'attributes' => $attributes,
-    ]);
-    try {
-        $model = $this->model->create($attributes);
-        Log::info('✅ BaseRepository@create succeeded', [
-            'model' => get_class($this->model),
-            'id' => $model->id,
-        ]);
+    public function create(array $input): Model
+    {
+        $model = $this->model->newInstance($input);
+
+        $model->save();
+
         return $model;
-    } catch (\Exception $e) {
-        Log::error('❌ BaseRepository@create failed: ' . $e->getMessage(), [
-            'trace' => $e->getTraceAsString(),
-            'attributes' => $attributes,
-        ]);
-        throw $e;
     }
-}
 
     /**
      * Find model record for given id

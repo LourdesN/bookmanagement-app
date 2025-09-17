@@ -2,76 +2,54 @@
 
 namespace App\Models;
 
-use Illuminate\Support\Facades\Log;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Inventory extends Model
 {
-    public $table = 'inventories';
-    public $fillable = ['book_id', 'quantity', 'location'];
-    protected $casts = ['location' => 'string'];
+    protected $table = 'inventories';
+
+    protected $fillable = ['book_id', 'quantity', 'location'];
+
+    protected $casts = [
+        'location' => 'string',
+        'quantity' => 'integer',
+    ];
+
     public static array $rules = [
-        'book_id' => 'required',
-        'quantity' => 'required',
+        'book_id'  => 'required|integer',
+        'quantity' => 'required|integer|min:0',
         'location' => 'required|string|max:255',
     ];
-    public function book(): \Illuminate\Database\Eloquent\Relations\BelongsTo
-    {
-        return $this->belongsTo(\App\Models\Book::class, 'book_id');
-    }
+
     protected static function booted()
     {
         static::saving(function ($inventory) {
-            Log::info('🔄 Inventories saving event triggered', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
+            Log::info('🔄 Inventory saving event triggered', $inventory->getAttributes());
+
             if ($inventory->quantity < 0) {
-                Log::error('❌ Inventory quantity cannot be negative', [
-                    'id' => $inventory->id,
-                    'book_id' => $inventory->book_id,
-                    'quantity' => $inventory->quantity,
-                ]);
+                Log::error('❌ Inventory quantity cannot be negative', $inventory->getAttributes());
                 throw new \Exception('Inventory quantity cannot be negative.');
             }
-            Log::info('✅ Inventories saving event processed', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
-        });
-
-        static::updating(function ($inventory) {
-            Log::info('🔄 Inventories updating event triggered', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
         });
 
         static::updated(function ($inventory) {
-            Log::info('🔄 Inventories updated event triggered', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
+            Log::info('✅ Inventory updated event triggered', $inventory->getAttributes());
         });
 
         static::created(function ($inventory) {
-            Log::info('🔄 Inventories created event triggered', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
+            Log::info('✅ Inventory created event triggered', $inventory->getAttributes());
         });
 
         static::deleted(function ($inventory) {
-            Log::info('🔄 Inventories deleted event triggered', [
-                'id' => $inventory->id,
-                'book_id' => $inventory->book_id,
-                'quantity' => $inventory->quantity,
-            ]);
+            Log::info('🗑️ Inventory deleted event triggered', $inventory->getAttributes());
         });
     }
+
+    // Relationships
+    public function book()
+    {
+        return $this->belongsTo(Book::class, 'book_id');
+    }
 }
+    

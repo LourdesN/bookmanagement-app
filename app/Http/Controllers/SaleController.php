@@ -98,7 +98,7 @@ class SaleController extends AppBaseController
 
     DB::beginTransaction();
     try {
-        // Create sale
+        // ✅ Insert sale
         $sale = $this->saleRepository->create([
             'book_id'       => (int) $input['book_id'],
             'customer_id'   => (int) $input['customer_id'],
@@ -111,17 +111,17 @@ class SaleController extends AppBaseController
         ]);
         Log::info('✅ Sale created', ['sale_id' => $sale->id]);
 
-        // Create payment if applicable
+        // ✅ Insert payment (if amount paid > 0)
         if ($amountPaid > 0) {
             Payment::create([
-                'sale_id' => $sale->id,
-                'amount' => $amountPaid,
+                'sale_id'      => $sale->id,
+                'amount'       => $amountPaid,
                 'payment_date' => now()
             ]);
             Log::info('💰 Payment recorded', ['sale_id' => $sale->id, 'amount' => $amountPaid]);
         }
 
-        // ⚠️ No need to call decrementInventory anymore — PostgreSQL trigger does it automatically
+        // 🚀 No manual inventory update here — the database trigger handles it
 
         DB::commit();
         Alert::success('Success', 'Sale recorded successfully.');
@@ -134,7 +134,6 @@ class SaleController extends AppBaseController
         return redirect()->back()->withInput();
     }
 }
-
 
 
     /**
