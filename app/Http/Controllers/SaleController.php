@@ -67,66 +67,74 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-    public function store(CreateSaleRequest $request)
-    {
-        Log::info('🟢 SaleController@store', ['input' => $request->all()]);
+   public function store(CreateSaleRequest $request)
+{
+    Log::info('🟢 SaleController@store triggered', ['input' => $request->all()]);
 
-        $input = $request->all();
-        $book = \App\Models\Book::find($input['book_id']);
-        if (!$book) {
-            Log::warning('❌ Book not found', ['book_id' => $input['book_id']]);
-            Alert::error('Book does not exist.');
-            return redirect()->back()->withInput();
-        }
+    $input = $request->all();
 
-        $customer = Customer::find($input['customer_id']);
-        if (!$customer) {
-            Log::warning('❌ Customer not found', ['customer_id' => $input['customer_id']]);
-            Alert::error('Customer does not exist.');
-            return redirect()->back()->withInput();
-        }
-
-        $total = number_format((float) $input['total'], 2, '.', '');
-        $amountPaid = number_format((float) ($input['amount_paid'] ?? 0), 2, '.', '');
-        $balanceDue = number_format(max(0, (float) $total - (float) $amountPaid), 2, '.', '');
-        $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-        DB::beginTransaction();
-        try {
-            // Create sale
-            $sale = $this->saleRepository->create([
-                'book_id' => (int) $input['book_id'],
-                'customer_id' => (int) $input['customer_id'],
-                'quantity' => (int) $input['quantity'],
-                'unit_price' => number_format((float) $input['unit_price'], 2, '.', ''),
-                'total' => $total,
-                'amount_paid' => $amountPaid,
-                'balance_due' => $balanceDue,
-                'payment_status' => $paymentStatus,
-            ]);
-            Log::info('✅ Sale created', ['sale_id' => $sale->id]);
-
-            if ($amountPaid > 0) {
-                Payment::create(['sale_id' => $sale->id, 'amount' => $amountPaid, 'payment_date' => now()]);
-            }
-
-            // Decrement inventory
-            Log::info('📦 Calling decrementInventory', ['book_id' => $input['book_id'], 'quantity' => $input['quantity']]);
-            $this->inventoryController->decrementInventory($input['book_id'], $input['quantity']);
-            Log::info('✅ Inventory decremented');
-
-            DB::commit();
-            Alert::success('Success', 'Sale and inventory updated.');
-            return redirect(route('sales.index'));
-        } catch (\Exception $e) {
-            DB::rollBack();
-            Log::error('❌ Error: ' . $e->getMessage(), ['sql' => DB::getQueryLog()]);
-            Alert::error('Error: ' . $e->getMessage());
-            return redirect()->back()->withInput();
-        } finally {
-            DB::disableQueryLog();
-        }
+    // Validate book exists
+    $book = \App\Models\Book::find($input['book_id']);
+    if (!$book) {
+        Log::warning('❌ Book not found', ['book_id' => $input['book_id']]);
+        Alert::error('Book does not exist.');
+        return redirect()->back()->withInput();
     }
+
+    // Validate customer exists
+    $customer = Customer::find($input['customer_id']);
+    if (!$customer) {
+        Log::warning('❌ Customer not found', ['customer_id' => $input['customer_id']]);
+        Alert::error('Customer does not exist.');
+        return redirect()->back()->withInput();
+    }
+
+    $total = number_format((float) $input['total'], 2, '.', '');
+    $amountPaid = number_format((float) ($input['amount_paid'] ?? 0), 2, '.', '');
+    $balanceDue = number_format(max(0, (float) $total - (float) $amountPaid), 2, '.', '');
+    $paymentStatus = $amountPaid >= $total
+        ? 'Paid'
+        : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
+
+    DB::beginTransaction();
+    try {
+        // Create sale
+        $sale = $this->saleRepository->create([
+            'book_id'       => (int) $input['book_id'],
+            'customer_id'   => (int) $input['customer_id'],
+            'quantity'      => (int) $input['quantity'],
+            'unit_price'    => number_format((float) $input['unit_price'], 2, '.', ''),
+            'total'         => $total,
+            'amount_paid'   => $amountPaid,
+            'balance_due'   => $balanceDue,
+            'payment_status'=> $paymentStatus,
+        ]);
+        Log::info('✅ Sale created', ['sale_id' => $sale->id]);
+
+        // Create payment if applicable
+        if ($amountPaid > 0) {
+            Payment::create([
+                'sale_id' => $sale->id,
+                'amount' => $amountPaid,
+                'payment_date' => now()
+            ]);
+            Log::info('💰 Payment recorded', ['sale_id' => $sale->id, 'amount' => $amountPaid]);
+        }
+
+        // ⚠️ No need to call decrementInventory anymore — PostgreSQL trigger does it automatically
+
+        DB::commit();
+        Alert::success('Success', 'Sale recorded successfully.');
+        return redirect(route('sales.index'));
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('❌ Error creating sale: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        Alert::error('Error: ' . $e->getMessage());
+        return redirect()->back()->withInput();
+    }
+}
+
 
 
     /**
