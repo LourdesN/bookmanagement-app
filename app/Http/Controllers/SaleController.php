@@ -68,40 +68,52 @@ public function store(CreateSaleRequest $request)
     $input = $request->all();
     Log::info('📥 Input received:', $input);
 
-    // ✅ Calculate totals
+    // Calculate totals
     $total = (float) $input['total'];
     $amountPaid = isset($input['amount_paid']) ? (float) $input['amount_paid'] : 0;
-    $input['balance_due'] = $total - $amountPaid;
+    $balanceDue = max(0, $total - $amountPaid); // Ensure non-negative balance
+    $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
     DB::beginTransaction();
     try {
         Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
 
         $inventory = Inventory::where('book_id', $input['book_id'])->first();
-
         if (!$inventory) {
             Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
             Alert::error('No inventory found for this book.');
-            return redirect()->back();
+            return redirect()->back()->withInput();
         }
 
         if ($inventory->quantity < $input['quantity']) {
             Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
             Alert::error('Insufficient inventory quantity for this sale.');
-            return redirect()->back();
+            return redirect()->back()->withInput();
         }
 
-        Log::info('✅ Creating sale...', $input);
+        Log::info('✅ Attempting to create sale with data:', [
+            'book_id' => $input['book_id'],
+            'customer_id' => $input['customer_id'],
+            'quantity' => $input['quantity'],
+            'unit_price' => $input['unit_price'],
+            'total' => $total,
+            'amount_paid' => $amountPaid,
+            'balance_due' => $balanceDue,
+            'payment_status' => $paymentStatus,
+        ]);
 
         $sale = $this->saleRepository->create([
-            'book_id'        => $input['book_id'],
-            'customer_id'    => $input['customer_id'],
-            'quantity'       => $input['quantity'],
-            'unit_price'     => $input['unit_price'],
-            'total'          => $total,
-            'amount_paid'    => $amountPaid,
-            'balance_due'    => $input['balance_due'],
+            'book_id'        => (int) $input['book_id'], // Ensure integer
+            'customer_id'    => (int) $input['customer_id'], // Ensure integer
+            'quantity'       => (int) $input['quantity'], // Ensure integer
+            'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''), // Ensure numeric(10,2)
+            'total'          => number_format($total, 2, '.', ''), // Ensure numeric(10,2)
+            'amount_paid'    => number_format($amountPaid, 2, '.', ''), // Ensure numeric(10,2)
+            'balance_due'    => number_format($balanceDue, 2, '.', ''), // Ensure numeric(10,2)
+            'payment_status' => $paymentStatus, // Explicitly set payment_status
         ]);
+
+        Log::info('✅ Sale created with ID: ' . $sale->id);
 
         Log::info('📦 Decrementing inventory...');
         $inventory->decrement('quantity', $input['quantity']);
@@ -110,7 +122,7 @@ public function store(CreateSaleRequest $request)
             Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
                 'sale_id' => $sale->id,
-                'amount' => $amountPaid,
+                'amount' => number_format($amountPaid, 2, '.', ''), // Ensure numeric(10,2)
                 'payment_date' => now(),
             ]);
         }
@@ -133,9 +145,13 @@ public function store(CreateSaleRequest $request)
         return redirect(route('sales.index'));
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('❌ Exception occurred: ' . $e->getMessage());
+        Log::error('❌ Exception occurred: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'input' => $input,
+            'sql' => DB::getQueryLog(), // Log SQL queries
+        ]);
         Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
-        return redirect()->back();
+        return redirect()->back()->withInput();
     }
 }
 

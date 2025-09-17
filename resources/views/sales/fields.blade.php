@@ -20,13 +20,13 @@
     <!-- Unit Price (readonly) -->
     <div class="form-group col-sm-6">
         {!! Form::label('unit_price', 'Unit Price:') !!}
-        <input type="number" class="form-control" name="unit_price" id="unit_price" readonly required>
+        <input type="number" class="form-control" name="unit_price" id="unit_price" step="0.01" readonly required>
     </div>
 
     <!-- Total (readonly) -->
     <div class="form-group col-sm-6">
         {!! Form::label('total', 'Total:') !!}
-        <input type="text" class="form-control" name="total" id="total" readonly>
+        <input type="number" class="form-control" name="total" id="total" step="0.01" readonly required>
     </div>
 
     <!-- Amount Paid -->
@@ -38,7 +38,7 @@
     <!-- Balance Due (readonly) -->
     <div class="form-group col-sm-6">
         {!! Form::label('balance_due', 'Balance Due:') !!}
-        <input type="text" class="form-control" name="balance_due" id="balance_due" readonly>
+        <input type="number" class="form-control" name="balance_due" id="balance_due" step="0.01" readonly>
     </div> 
 </div>
 

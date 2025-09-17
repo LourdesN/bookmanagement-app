@@ -7,6 +7,7 @@ use App\Repositories\BaseRepository;
 
 class SaleRepository extends BaseRepository
 {
+    
     protected $fieldSearchable = [
         'book_id',
         'customer_id',
