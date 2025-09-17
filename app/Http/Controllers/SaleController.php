@@ -64,48 +64,17 @@ class SaleController extends AppBaseController
 public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
-
     $input = $request->all();
     Log::info('📥 Input received:', $input);
 
-    // Enable query logging
     DB::enableQueryLog();
-
-    // Calculate totals
-    $total = number_format((float) $input['total'], 2, '.', '');
-    $amountPaid = isset($input['amount_paid']) ? number_format((float) $input['amount_paid'], 2, '.', '') : '0.00';
-    $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', '');
-    $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-    DB::beginTransaction();
     try {
-        Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
+        $total = number_format((float) $input['total'], 2, '.', '');
+        $amountPaid = isset($input['amount_paid']) ? number_format((float) $input['amount_paid'], 2, '.', '') : '0.00';
+        $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', '');
+        $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
-        $inventory = Inventory::where('book_id', $input['book_id'])->first();
-        if (!$inventory) {
-            Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
-            Alert::error('No inventory found for this book.');
-            return redirect()->back()->withInput();
-        }
-
-        if ($inventory->quantity < (int) $input['quantity']) {
-            Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
-            Alert::error('Insufficient inventory quantity for this sale.');
-            return redirect()->back()->withInput();
-        }
-
-        Log::info('✅ Attempting to create sale with data:', [
-            'book_id' => $input['book_id'],
-            'customer_id' => $input['customer_id'],
-            'quantity' => $input['quantity'],
-            'unit_price' => $input['unit_price'],
-            'total' => $total,
-            'amount_paid' => $amountPaid,
-            'balance_due' => $balanceDue,
-            'payment_status' => $paymentStatus,
-        ]);
-
-        $sale = $this->saleRepository->create([
+        $sale = Sale::create([
             'book_id'        => (int) $input['book_id'],
             'customer_id'    => (int) $input['customer_id'],
             'quantity'       => (int) $input['quantity'],
@@ -115,45 +84,15 @@ public function store(CreateSaleRequest $request)
             'balance_due'    => $balanceDue,
             'payment_status' => $paymentStatus,
         ]);
-
         Log::info('✅ Sale created with ID: ' . $sale->id);
-
-        Log::info('📦 Decrementing inventory...');
-        $inventory->decrement('quantity', $input['quantity']);
-
-        if ($amountPaid > 0) {
-            Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
-            Payment::create([
-                'sale_id' => $sale->id,
-                'amount' => $amountPaid,
-                'payment_date' => now(),
-            ]);
-        }
-
-        Log::info("📡 Checking reorder level...");
-        $book = $inventory->book;
-        if ($inventory->fresh()->quantity <= $book->reorder_level) {
-            Log::info('📨 Sending reorder alert emails...');
-            FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
-                ->notify(new ReorderLevelAlert($inventory));
-
-            foreach (User::all() as $user) {
-                $user->notify(new ReorderLevelAlert($inventory));
-            }
-        }
-
-        DB::commit();
-        Log::info('✅ Sale completed successfully');
-        Alert::success('Success', 'Sale, payment, and inventory updated successfully.');
         return redirect(route('sales.index'));
     } catch (\Exception $e) {
-        DB::rollBack();
         Log::error('❌ Exception occurred: ' . $e->getMessage(), [
             'trace' => $e->getTraceAsString(),
             'input' => $input,
             'sql' => DB::getQueryLog(),
         ]);
-        Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
+        Alert::error('An error occurred: ' . $e->getMessage());
         return redirect()->back()->withInput();
     } finally {
         DB::disableQueryLog();
