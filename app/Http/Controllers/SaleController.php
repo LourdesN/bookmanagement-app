@@ -67,74 +67,37 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-   public function store(CreateSaleRequest $request)
+ public function store(Request $request)
 {
-    Log::info('🟢 SaleController@store triggered', ['input' => $request->all()]);
+    Log::info("🟢 SaleController@store triggered", ['input' => $request->all()]);
 
-    $input = $request->all();
+    $validated = $request->validate([
+        'book_id' => 'required|exists:books,id',
+        'customer_id' => 'required|exists:customers,id',
+        'quantity' => 'required|integer|min:1',
+        'unit_price' => 'required|numeric|min:0',
+        'total' => 'required|numeric|min:0',
+        'amount_paid' => 'required|numeric|min:0',
+    ]);
 
-    // Validate book exists
-    $book = \App\Models\Book::find($input['book_id']);
-    if (!$book) {
-        Log::warning('❌ Book not found', ['book_id' => $input['book_id']]);
-        Alert::error('Book does not exist.');
-        return redirect()->back()->withInput();
-    }
+    $validated['balance_due'] = $validated['total'] - $validated['amount_paid'];
+    $validated['payment_status'] = $validated['balance_due'] > 0 ? 'Unpaid' : 'Paid';
 
-    // Validate customer exists
-    $customer = Customer::find($input['customer_id']);
-    if (!$customer) {
-        Log::warning('❌ Customer not found', ['customer_id' => $input['customer_id']]);
-        Alert::error('Customer does not exist.');
-        return redirect()->back()->withInput();
-    }
-
-    $total = number_format((float) $input['total'], 2, '.', '');
-    $amountPaid = number_format((float) ($input['amount_paid'] ?? 0), 2, '.', '');
-    $balanceDue = number_format(max(0, (float) $total - (float) $amountPaid), 2, '.', '');
-    $paymentStatus = $amountPaid >= $total
-        ? 'Paid'
-        : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
-
-    DB::beginTransaction();
     try {
-        // ✅ Insert sale
-        $sale = $this->saleRepository->create([
-            'book_id'       => (int) $input['book_id'],
-            'customer_id'   => (int) $input['customer_id'],
-            'quantity'      => (int) $input['quantity'],
-            'unit_price'    => number_format((float) $input['unit_price'], 2, '.', ''),
-            'total'         => $total,
-            'amount_paid'   => $amountPaid,
-            'balance_due'   => $balanceDue,
-            'payment_status'=> $paymentStatus,
-        ]);
-        Log::info('✅ Sale created', ['sale_id' => $sale->id]);
+        DB::beginTransaction();
 
-        // ✅ Insert payment (if amount paid > 0)
-        if ($amountPaid > 0) {
-            Payment::create([
-                'sale_id'      => $sale->id,
-                'amount'       => $amountPaid,
-                'payment_date' => now()
-            ]);
-            Log::info('💰 Payment recorded', ['sale_id' => $sale->id, 'amount' => $amountPaid]);
-        }
-
-        // 🚀 No manual inventory update here — the database trigger handles it
+        // Just create the sale
+        $sale = Sale::create($validated);
+        Log::info("✅ Sale created", ['sale_id' => $sale->id]);
 
         DB::commit();
-        Alert::success('Success', 'Sale recorded successfully.');
-        return redirect(route('sales.index'));
-
+        return redirect()->route('sales.index')->with('success', 'Sale created successfully.');
     } catch (\Exception $e) {
         DB::rollBack();
-        Log::error('❌ Error creating sale: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
-        Alert::error('Error: ' . $e->getMessage());
-        return redirect()->back()->withInput();
+        Log::error("❌ Error creating sale: " . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
+        return back()->withErrors("Error: " . $e->getMessage());
     }
 }
-
 
     /**
      * Display the specified Sale.
