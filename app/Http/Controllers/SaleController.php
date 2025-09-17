@@ -61,7 +61,6 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-
 public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@store triggered');
@@ -73,9 +72,9 @@ public function store(CreateSaleRequest $request)
     DB::enableQueryLog();
 
     // Calculate totals
-    $total = number_format((float) $input['total'], 2, '.', ''); // Ensure numeric(10,2)
+    $total = number_format((float) $input['total'], 2, '.', '');
     $amountPaid = isset($input['amount_paid']) ? number_format((float) $input['amount_paid'], 2, '.', '') : '0.00';
-    $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', ''); // Ensure numeric(10,2)
+    $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', '');
     $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
     DB::beginTransaction();
@@ -107,14 +106,14 @@ public function store(CreateSaleRequest $request)
         ]);
 
         $sale = $this->saleRepository->create([
-            'book_id'        => (int) $input['book_id'], // Ensure integer
-            'customer_id'    => (int) $input['customer_id'], // Ensure integer
-            'quantity'       => (int) $input['quantity'], // Ensure integer
-            'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''), // Ensure numeric(10,2)
-            'total'          => $total, // Already formatted
-            'amount_paid'    => $amountPaid, // Already formatted
-            'balance_due'    => $balanceDue, // Already formatted
-            'payment_status' => $paymentStatus, // Explicitly set
+            'book_id'        => (int) $input['book_id'],
+            'customer_id'    => (int) $input['customer_id'],
+            'quantity'       => (int) $input['quantity'],
+            'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''),
+            'total'          => $total,
+            'amount_paid'    => $amountPaid,
+            'balance_due'    => $balanceDue,
+            'payment_status' => $paymentStatus,
         ]);
 
         Log::info('✅ Sale created with ID: ' . $sale->id);
@@ -126,7 +125,7 @@ public function store(CreateSaleRequest $request)
             Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
                 'sale_id' => $sale->id,
-                'amount' => $amountPaid, // Already formatted
+                'amount' => $amountPaid,
                 'payment_date' => now(),
             ]);
         }
@@ -152,14 +151,15 @@ public function store(CreateSaleRequest $request)
         Log::error('❌ Exception occurred: ' . $e->getMessage(), [
             'trace' => $e->getTraceAsString(),
             'input' => $input,
-            'sql' => DB::getQueryLog(), // Log all queries
+            'sql' => DB::getQueryLog(),
         ]);
         Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
         return redirect()->back()->withInput();
     } finally {
-        DB::disableQueryLog(); // Disable query logging to prevent memory issues
+        DB::disableQueryLog();
     }
 }
+
 
     /**
      * Display the specified Sale.

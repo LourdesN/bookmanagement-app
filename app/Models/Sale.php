@@ -34,20 +34,18 @@ class Sale extends Model
     ];
 
     protected static function booted()
-{
-    static::saving(function ($sale) {
-        if ($sale->amount_paid >= $sale->total) {
-            $sale->payment_status = 'Paid';
-        } elseif ($sale->amount_paid > 0) {
-            $sale->payment_status = 'Partially Paid';
-        } else {
-            $sale->payment_status = 'Unpaid';
-        }
-
-        // prevent negative balance
-        $sale->balance_due = max(0, $sale->total - $sale->amount_paid);
-    });
-}
+    {
+        static::saving(function ($sale) {
+            if ($sale->amount_paid >= $sale->total) {
+                $sale->payment_status = 'Paid';
+            } elseif ($sale->amount_paid > 0) {
+                $sale->payment_status = 'Partially Paid';
+            } else {
+                $sale->payment_status = 'Unpaid';
+            }
+            $sale->balance_due = number_format(max(0, (float) $sale->total - (float) $sale->amount_paid), 2, '.', ''); // Ensure numeric(10,2)
+        });
+    }
 
     public function book(): \Illuminate\Database\Eloquent\Relations\BelongsTo
     {
