@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class Sale extends Model
 {
@@ -33,17 +34,34 @@ class Sale extends Model
         'balance_due' => 'nullable|numeric',
     ];
 
-    protected static function booted()
+   protected static function booted()
     {
         static::saving(function ($sale) {
-            if ($sale->amount_paid >= $sale->total) {
-                $sale->payment_status = 'Paid';
-            } elseif ($sale->amount_paid > 0) {
-                $sale->payment_status = 'Partially Paid';
-            } else {
-                $sale->payment_status = 'Unpaid';
+            Log::info('🔄 Sale saving event triggered', [
+                'attributes' => $sale->getAttributes(),
+                'total' => $sale->total,
+                'amount_paid' => $sale->amount_paid,
+            ]);
+
+            try {
+                if ($sale->amount_paid >= $sale->total) {
+                    $sale->payment_status = 'Paid';
+                } elseif ($sale->amount_paid > 0) {
+                    $sale->payment_status = 'Partially Paid';
+                } else {
+                    $sale->payment_status = 'Unpaid';
+                }
+                $sale->balance_due = number_format(max(0, (float) $sale->total - (float) $sale->amount_paid), 2, '.', '');
+                Log::info('✅ Sale saving event processed', [
+                    'payment_status' => $sale->payment_status,
+                    'balance_due' => $sale->balance_due,
+                ]);
+            } catch (\Exception $e) {
+                Log::error('❌ Error in Sale saving event: ' . $e->getMessage(), [
+                    'trace' => $e->getTraceAsString(),
+                ]);
+                throw $e; // Re-throw to ensure the transaction aborts
             }
-            $sale->balance_due = number_format(max(0, (float) $sale->total - (float) $sale->amount_paid), 2, '.', ''); // Ensure numeric(10,2)
         });
     }
 
