@@ -224,6 +224,39 @@ public function store(CreateSaleRequest $request)
     }
 }
 
+
+public function testInventoryUpdateProd()
+{
+    Log::info('🟢 Testing inventory update in production (PostgreSQL)');
+    DB::enableQueryLog();
+    DB::beginTransaction();
+    try {
+        Log::info('🔄 Testing transaction state with SELECT 1');
+        DB::select('SELECT 1');
+        Log::info('✅ Transaction state test passed');
+        $affected = DB::update(
+            'UPDATE inventories SET quantity = quantity - 1, updated_at = ? WHERE id = 2 AND quantity >= 1',
+            [now()]
+        );
+        if ($affected === 0) {
+            Log::error('❌ Inventory update failed: No rows affected');
+            throw new \Exception('Failed to update inventory');
+        }
+        Log::info('✅ Inventory updated successfully');
+        DB::commit();
+        return response()->json(['message' => 'Inventory updated']);
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('❌ Failed to update inventory: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'sql' => DB::getQueryLog(),
+        ]);
+        return response()->json(['error' => $e->getMessage()], 500);
+    } finally {
+        DB::disableQueryLog();
+    }
+}
+
     /**
      * Display the specified Sale.
      */

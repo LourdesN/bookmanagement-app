@@ -54,6 +54,7 @@ Route::middleware('auth')->group(function () {
     Route::resource('inventories', InventoryController::class);
 
     Route::get('/sales/debtors', [SaleController::class, 'debtors'])->name('sales.debtors');
+    Route::get('/test-inventory-update-prod', [SaleController::class, 'testInventoryUpdateProd']);
     Route::resource('sales', SaleController::class);
 
     Route::resource('suppliers', SupplierController::class);
@@ -84,3 +85,4 @@ Route::get('/db-test', function () {
         return '❌ DB connection issue: ' . $e->getMessage();
     }
 });
+
