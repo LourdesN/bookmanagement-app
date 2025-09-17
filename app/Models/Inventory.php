@@ -22,12 +22,40 @@ class Inventory extends Model
     protected static function booted()
     {
         static::saving(function ($inventory) {
-            Log::info('🔄 Inventories saving event triggered', []);
+            Log::info('🔄 Inventories saving event triggered', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
             if ($inventory->quantity < 0) {
-                Log::warning('❌ Inventory quantity cannot be negative', []);
+                Log::error('❌ Inventory quantity cannot be negative', [
+                    'id' => $inventory->id,
+                    'book_id' => $inventory->book_id,
+                    'quantity' => $inventory->quantity,
+                ]);
                 throw new \Exception('Inventory quantity cannot be negative.');
             }
-            Log::info('✅ Inventories saving event processed', []);
+            Log::info('✅ Inventories saving event processed', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
+        });
+
+        static::updating(function ($inventory) {
+            Log::info('🔄 Inventories updating event triggered', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
+        });
+
+        static::updated(function ($inventory) {
+            Log::info('🔄 Inventories updated event triggered', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
         });
     }
 }

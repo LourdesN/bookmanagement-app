@@ -92,11 +92,11 @@ public function store(CreateSaleRequest $request)
     $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', '');
     $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
+    // Inventory transaction
+    $inventory = null;
     DB::beginTransaction();
     try {
         Log::info('🔍 Checking inventory for book_id=' . $input['book_id']);
-
-        // Check inventory without lock to avoid conflicts
         $inventory = Inventory::where('book_id', $input['book_id'])->first();
         if (!$inventory) {
             Log::warning('❌ Inventory not found for book_id: ' . $input['book_id']);
@@ -110,29 +110,38 @@ public function store(CreateSaleRequest $request)
             return redirect()->back()->withInput();
         }
 
-        // Decrement inventory
         $newQuantity = $inventory->quantity - (int) $input['quantity'];
         Log::info('📦 Decrementing inventory...', [
             'book_id' => $input['book_id'],
             'current_quantity' => $inventory->quantity,
             'new_quantity' => $newQuantity,
         ]);
-        try {
-            $inventory->quantity = $newQuantity;
-            $inventory->save();
-            Log::info('✅ Inventory decremented successfully', [
-                'book_id' => $input['book_id'],
-                'new_quantity' => $inventory->quantity,
-            ]);
-        } catch (\Exception $e) {
-            Log::error('❌ Failed to decrement inventory: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'book_id' => $input['book_id'],
-                'quantity' => $newQuantity,
-            ]);
-            throw $e;
-        }
+        $inventory->quantity = $newQuantity;
+        $inventory->save();
+        Log::info('✅ Inventory decremented successfully', [
+            'book_id' => $input['book_id'],
+            'new_quantity' => $inventory->quantity,
+        ]);
 
+        DB::commit();
+    } catch (\Exception $e) {
+        DB::rollBack();
+        Log::error('❌ Failed to decrement inventory: ' . $e->getMessage(), [
+            'trace' => $e->getTraceAsString(),
+            'book_id' => $input['book_id'],
+            'quantity' => $newQuantity ?? null,
+            'sql' => DB::getQueryLog(),
+        ]);
+        Alert::error('An error occurred while updating inventory: ' . $e->getMessage());
+        return redirect()->back()->withInput();
+    } finally {
+        DB::disableQueryLog();
+    }
+
+    // Sale transaction
+    DB::enableQueryLog();
+    DB::beginTransaction();
+    try {
         Log::info('✅ Attempting to create sale with data:', [
             'book_id' => $input['book_id'],
             'customer_id' => $input['customer_id'],
@@ -144,62 +153,44 @@ public function store(CreateSaleRequest $request)
             'payment_status' => $paymentStatus,
         ]);
 
-        // Create sale
-        try {
-            $sale = $this->saleRepository->create([
-                'book_id'        => (int) $input['book_id'],
-                'customer_id'    => (int) $input['customer_id'],
-                'quantity'       => (int) $input['quantity'],
-                'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''),
-                'total'          => $total,
-                'amount_paid'    => $amountPaid,
-                'balance_due'    => $balanceDue,
-                'payment_status' => $paymentStatus,
-            ]);
-            Log::info('✅ Sale created with ID: ' . $sale->id);
-        } catch (\Exception $e) {
-            Log::error('❌ Failed to create sale: ' . $e->getMessage(), [
-                'trace' => $e->getTraceAsString(),
-                'input' => $input,
-                'sql' => DB::getQueryLog(),
-            ]);
-            throw $e;
+        $sale = $this->saleRepository->create([
+            'book_id'        => (int) $input['book_id'],
+            'customer_id'    => (int) $input['customer_id'],
+            'quantity'       => (int) $input['quantity'],
+            'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''),
+            'total'          => $total,
+            'amount_paid'    => $amountPaid,
+            'balance_due'    => $balanceDue,
+            'payment_status' => $paymentStatus,
+        ]);
+        Log::info('✅ Sale created with ID: ' . $sale->id);
+
+        // Verify sale exists
+        $saleCheck = Sale::find($sale->id);
+        if (!$saleCheck) {
+            Log::error('❌ Sale not found after creation', ['sale_id' => $sale->id]);
+            throw new \Exception('Sale not found after creation');
         }
+        Log::info('✅ Sale verified in database', ['sale_id' => $sale->id]);
 
         if ($amountPaid > 0) {
             Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
-            try {
-                Payment::create([
-                    'sale_id' => $sale->id,
-                    'amount' => $amountPaid,
-                    'payment_date' => now(),
-                ]);
-            } catch (\Exception $e) {
-                Log::error('❌ Failed to create payment: ' . $e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
-                    'sale_id' => $sale->id,
-                    'amount' => $amountPaid,
-                ]);
-                throw $e;
-            }
+            Payment::create([
+                'sale_id' => $sale->id,
+                'amount' => $amountPaid,
+                'payment_date' => now(),
+            ]);
         }
 
+        // Reorder check
         Log::info("📡 Checking reorder level...");
         $book = $inventory->book;
         if ($inventory->fresh()->quantity <= $book->reorder_level) {
             Log::info('📨 Sending reorder alert emails...');
-            try {
-                FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
-                    ->notify(new ReorderLevelAlert($inventory));
-                foreach (User::all() as $user) {
-                    $user->notify(new ReorderLevelAlert($inventory));
-                }
-            } catch (\Exception $e) {
-                Log::error('❌ Failed to send reorder notifications: ' . $e->getMessage(), [
-                    'trace' => $e->getTraceAsString(),
-                    'book_id' => $input['book_id'],
-                ]);
-                throw $e;
+            FacadesNotification::route('mail', 'lourdeswairimu@gmail.com')
+                ->notify(new ReorderLevelAlert($inventory));
+            foreach (User::all() as $user) {
+                $user->notify(new ReorderLevelAlert($inventory));
             }
         }
 
