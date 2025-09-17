@@ -61,7 +61,7 @@ class SaleController extends AppBaseController
     /**
      * Store a newly created Sale in storage.
      */
-public function storeMinimal(CreateSaleRequest $request)
+public function store(CreateSaleRequest $request)
 {
     Log::info('🟢 SaleController@storeMinimal triggered');
 
