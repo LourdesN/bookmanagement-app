@@ -12,6 +12,9 @@
         </div>
     </div>
 </section>
+
+@include('sweetalert::alert')
+
 @if (session('error'))
     <div class="alert alert-danger">{{ session('error') }}</div>
 @endif
@@ -43,4 +46,6 @@
         {!! Form::close() !!}
     </div>
 </div>
+
+<script src="{{ asset('vendor/sweetalert/sweetalert.all.js') }}"></script>
 @endsection

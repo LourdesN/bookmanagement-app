@@ -51,6 +51,7 @@ class SaleController extends AppBaseController
     public function create()
     {
         $booksData = Book::pluck('unit_cost', 'id'); 
+        Log::info('📚 Books Data:', $booksData->toArray());
         $books = Book::pluck('title', 'id');
     $customers = Customer::selectRaw("CONCAT(first_name, ' ', last_name) AS name, id")
                          ->pluck('name', 'id');
@@ -68,10 +69,13 @@ public function store(CreateSaleRequest $request)
     $input = $request->all();
     Log::info('📥 Input received:', $input);
 
+    // Enable query logging
+    DB::enableQueryLog();
+
     // Calculate totals
-    $total = (float) $input['total'];
-    $amountPaid = isset($input['amount_paid']) ? (float) $input['amount_paid'] : 0;
-    $balanceDue = max(0, $total - $amountPaid); // Ensure non-negative balance
+    $total = number_format((float) $input['total'], 2, '.', ''); // Ensure numeric(10,2)
+    $amountPaid = isset($input['amount_paid']) ? number_format((float) $input['amount_paid'], 2, '.', '') : '0.00';
+    $balanceDue = number_format(max(0, (float) $input['total'] - (float) $input['amount_paid']), 2, '.', ''); // Ensure numeric(10,2)
     $paymentStatus = $amountPaid >= $total ? 'Paid' : ($amountPaid > 0 ? 'Partially Paid' : 'Unpaid');
 
     DB::beginTransaction();
@@ -85,7 +89,7 @@ public function store(CreateSaleRequest $request)
             return redirect()->back()->withInput();
         }
 
-        if ($inventory->quantity < $input['quantity']) {
+        if ($inventory->quantity < (int) $input['quantity']) {
             Log::warning("❌ Not enough inventory. Available: {$inventory->quantity}, Requested: {$input['quantity']}");
             Alert::error('Insufficient inventory quantity for this sale.');
             return redirect()->back()->withInput();
@@ -107,10 +111,10 @@ public function store(CreateSaleRequest $request)
             'customer_id'    => (int) $input['customer_id'], // Ensure integer
             'quantity'       => (int) $input['quantity'], // Ensure integer
             'unit_price'     => number_format((float) $input['unit_price'], 2, '.', ''), // Ensure numeric(10,2)
-            'total'          => number_format($total, 2, '.', ''), // Ensure numeric(10,2)
-            'amount_paid'    => number_format($amountPaid, 2, '.', ''), // Ensure numeric(10,2)
-            'balance_due'    => number_format($balanceDue, 2, '.', ''), // Ensure numeric(10,2)
-            'payment_status' => $paymentStatus, // Explicitly set payment_status
+            'total'          => $total, // Already formatted
+            'amount_paid'    => $amountPaid, // Already formatted
+            'balance_due'    => $balanceDue, // Already formatted
+            'payment_status' => $paymentStatus, // Explicitly set
         ]);
 
         Log::info('✅ Sale created with ID: ' . $sale->id);
@@ -122,7 +126,7 @@ public function store(CreateSaleRequest $request)
             Log::info("💰 Logging payment of {$amountPaid} for sale_id: {$sale->id}");
             Payment::create([
                 'sale_id' => $sale->id,
-                'amount' => number_format($amountPaid, 2, '.', ''), // Ensure numeric(10,2)
+                'amount' => $amountPaid, // Already formatted
                 'payment_date' => now(),
             ]);
         }
@@ -148,13 +152,14 @@ public function store(CreateSaleRequest $request)
         Log::error('❌ Exception occurred: ' . $e->getMessage(), [
             'trace' => $e->getTraceAsString(),
             'input' => $input,
-            'sql' => DB::getQueryLog(), // Log SQL queries
+            'sql' => DB::getQueryLog(), // Log all queries
         ]);
         Alert::error('An error occurred while saving the sale: ' . $e->getMessage());
         return redirect()->back()->withInput();
+    } finally {
+        DB::disableQueryLog(); // Disable query logging to prevent memory issues
     }
 }
-
 
     /**
      * Display the specified Sale.
