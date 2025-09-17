@@ -116,11 +116,23 @@ public function store(CreateSaleRequest $request)
             'current_quantity' => $inventory->quantity,
             'new_quantity' => $newQuantity,
         ]);
-        $inventory->quantity = $newQuantity;
-        $inventory->save();
+
+        // Use raw SQL to update inventory
+        $affected = DB::update(
+            'UPDATE inventories SET quantity = ?, updated_at = ? WHERE id = ? AND quantity >= ?',
+            [$newQuantity, now(), $inventory->id, (int) $input['quantity']]
+        );
+        if ($affected === 0) {
+            Log::error('❌ Inventory update failed: No rows affected or quantity insufficient', [
+                'book_id' => $input['book_id'],
+                'id' => $inventory->id,
+                'new_quantity' => $newQuantity,
+            ]);
+            throw new \Exception('Failed to update inventory: No rows affected or quantity insufficient');
+        }
         Log::info('✅ Inventory decremented successfully', [
             'book_id' => $input['book_id'],
-            'new_quantity' => $inventory->quantity,
+            'new_quantity' => $newQuantity,
         ]);
 
         DB::commit();

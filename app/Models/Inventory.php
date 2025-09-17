@@ -57,5 +57,21 @@ class Inventory extends Model
                 'quantity' => $inventory->quantity,
             ]);
         });
+
+        static::created(function ($inventory) {
+            Log::info('🔄 Inventories created event triggered', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
+        });
+
+        static::deleted(function ($inventory) {
+            Log::info('🔄 Inventories deleted event triggered', [
+                'id' => $inventory->id,
+                'book_id' => $inventory->book_id,
+                'quantity' => $inventory->quantity,
+            ]);
+        });
     }
 }
